@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+python-multipart
+opencv-python
+numpy
+torch
+torchvision
+transformers
+pytesseract
+openpyxl
+pyyaml
+pytest
