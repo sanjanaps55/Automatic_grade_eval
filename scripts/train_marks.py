@@ -133,7 +133,7 @@ def main():
     print('glyphs:', {k: len(v) for k, v in bank.items()})
     net = MarksNet()
     opt = torch.optim.AdamW(net.parameters(), 1e-3, weight_decay=1e-4)
-    sched = torch.optim.lr_scheduler.OneCycleLR(opt, 2e-3, total_steps=epochs * ((len(tr) + 31) // 32))
+    sched = torch.optim.lr_scheduler.OneCycleLR(opt, 2e-3, total_steps=epochs * ((len(tr) + 300 + 31) // 32) + 5)
     ctc = nn.CTCLoss(blank=0, zero_infinity=True)
     enc = lambda s: [VOCAB.index(c) + 1 for c in s]
 

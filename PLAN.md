@@ -23,6 +23,23 @@ Evaluators copy name, register no. and question-wise marks from graded VIT answe
 
 - 2026-10-11 (end): user cleared all `?`. Built `data/labels_all.csv` = labels.csv (36) + labels_draft.csv (104) = **140 labelled sheets**, every reg_no matches `^\d{2}[A-Z]{3}\d{4}$`, names capitalised, no `?`. Removed re-photo sheet_164 (=092); samples now 140 = all labelled. Same student on two sheets with different marks (23BAI1422: 007/139, 24MCS1074: 001/039) is fine: different exams, extraction only. 4 sheets whose written sub-total != sum of questions are flagged in `needs_check` (049, 120, 127, 132): recheck or treat as teacher arithmetic errors. Next: step 3 (`cells.py`), split train/val by student.
 
+## Session note (2026-10-12): digits + header
+- Marks reader retrained with synthetic 2-digit strips (real single digits pasted together, train students only): held-out filled rows exact 97.4% (was 85.5%), confident-wrong at conf>=0.9: 1 (was 6). Blank rows 97.8%. a|b and written-sum rows still go to review. Weights `models/marks.pt` (git-ignored).
+- Register no.: zero-shot TrOCR-base scored 0/132 (reads whole lines, ignores format). Local CPU CTC attempt (`scripts/train_reg.py`, synthetic fonts then real fine-tune) collapsed to a constant guess: too few steps on CPU (~2.5 min/epoch). Next: train on a Colab GPU. `colab_reg.zip` (code + `data/reg_synth.npz` 30k synthetic strips rendered with Windows handwriting fonts + `data/reg_real.npz` 132 real strips). Colab: GPU runtime, upload zip, `!unzip -q colab_reg.zip`, `!python -u scripts/train_reg.py --npz --syn-epochs 40 --ft-epochs 60`, download `models/reg.pt`. Then add grammar-constrained decoding (2 digits + 3 letters + 4 digits) and roster snapping; name reader is secondary.
+- Live capture (not trained, classical): align every frame, auto-capture when aligned + steady + sharp, reject otherwise; to do with the server (step 7).
+
+## Session note (2026-10-14): header-reader plan
+- Decision: user has no GPU, names are cursive -> bake-off of fine-tuned **TrOCR-small** vs **PaddleOCR PP-OCRv5 rec** (TrOCR-base = accuracy reference: val exact 92%, test 75% n=12, 12 s/strip CPU). Train on Kaggle/Colab; inference CPU. Full plan: `~/.claude/plans/okay-so-i-need-velvet-iverson.md` (roster joint reg+name rule, Excel gets roster values, unseen-sheet test, 5-fold CV).
+- Done: `grade_eval/split.py` = single train/val/test split by student (101/25/14 sheets, 138 students), `scripts/make_split.py` -> `data/split.csv`; `build_cells.py` (cells.npz now has `split`) and `train_reg.py` use it. `tests/test_split.py`.
+- Next: name strips in `header.py` + export; `--field reg|name` in `train_trocr.py`; Paddle rec fine-tune; `grade_eval/roster.py`; overfit report (train vs val gap) in training scripts; need ~30-50 fresh sheets for the unseen test. Re-run `scripts/build_cells.py` to refresh `cells.npz` with the `split` column (marks model not yet retrained on 3-way split).
+
+- 2026-10-14 (later): added `header.name_strip` (`NAME_CROP` past the "Mr/Ms" label, before "Course Title"), `scripts/export_name_data.py` -> `data/name_real.npz` (132 strips: 95/25/12 train/val/test) + `data/name_preview.png`, and `scripts/finetune_header.py --field reg|name --model <trocr-small|base>` (shared student split, frozen encoder first epochs, early stopping on val CER, best-on-val weights, train-vs-val gap each epoch, test scored once). Smoke-tested on CPU. Needs `pip install sentencepiece` (small model tokenizer). Still to do: run on Kaggle/Colab GPU, Paddle rec fine-tune, compare.
+
+### Pending / to figure out tomorrow
+- Kaggle bake-off run (`kaggle_header_bakeoff.ipynb` + `kaggle_train.zip`, both git-untracked/rebuilt as needed): data loaded fine, but `finetune_header.py` failed at tokenizer load on Kaggle's newer transformers (needs `sentencepiece`/`protobuf`; patched to try `XLMRobertaTokenizer` first, not yet re-run on Kaggle). Re-upload zip or apply the patch cell, restart kernel, re-run.
+- Run TrOCR-small on reg + name, then PaddleOCR PP-OCRv5 rec on both (Paddle install / config / pretrained-weights URL are untested). Compare on val CER, train-vs-val gap, CPU speed; test set (12 sheets) is only a sanity check.
+- Then: `grade_eval/roster.py` (joint reg+name snapping), unseen-sheet test (~30-50 fresh sheets), retrain marks model on the 3-way split.
+
 ## Dataset findings
 - One fixed VIT cover form: 4 groups x 10 question rows (a|b) + sub-total row, printed in blue.
 - Marks are written in red/green pen, grid is blue, header handwriting blue/black -> separable by colour.
