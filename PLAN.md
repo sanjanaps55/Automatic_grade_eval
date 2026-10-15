@@ -7,10 +7,18 @@ Extract only: **register number, name, marks per question (a + b summed), total.
 ## Context
 Evaluators copy name, register no. and question-wise marks from graded VIT answer sheets into Excel by hand. This system does it locally: phone photo -> alignment -> handwriting recognition (CNN) -> validation / duplicate check -> SQLite -> Excel. Uncertain results go to manual review, never straight into Excel. Model choice is driven by the real dataset (`data/samples`), then fine-tuned.
 
-## Status (2026-10-11)
-- Done + tested (`tests/test_core.py`): `grade_eval/exam_config.py`, `validate.py`, `store/db.py`, `store/excel.py`.
-- Written: `vision/preprocess.py`, `vision/layout.py`, `vision/make_template.py` (+ `assets/template.png`). `layout.align` verified on real data, see step 1.
-- Missing: recognizer, pipeline, FastAPI phone upload, review UI, roster matching, exam YAML.
+## Status (2026-10-15)
+- **Done + tested** (`pytest tests/`, 16 pass): `exam_config.py`, `validate.py`, `store/db.py`, `store/excel.py`, `split.py` (one train/val/test split by student, 101/25/14 sheets), `roster.py` (joint reg-no + name matching against the uploaded class list; csv/xlsx).
+- **Done, no tests**: alignment (`vision/layout.py`, 95% of photos), cell extraction + marks reader (`scripts/build_cells.py`, `train_marks.py`), header strips for reg no. and name (`vision/header.py`), TrOCR fine-tune (`scripts/finetune_header.py`), Paddle data prep, prediction dump + roster scoring.
+- **Model decisions so far** (provisional until Paddle bake-off finishes):
+  | Job | Model | Status |
+  |---|---|---|
+  | Marks per question | ResNet18 + CTC (`models/marks.pt`, 43 MB) | keep; 97.4% exact on held-out filled rows. Retrain on the 3-way split still to do |
+  | Register no. | TrOCR-small fine-tuned (`models/trocr_reg_small`, 122 MB) | **chosen so far**: val 84% / test 75% exact, CER 0.02-0.07, ~1 s/strip CPU. Roster matching fixes most slips. Only replace if Paddle mobile beats it |
+  | Name | none yet | TrOCR-small name = unusable (val 8% exact). Candidates: PP-OCRv5 mobile fine-tune (Kaggle run pending, zero-shot 0.06-0.2 s/strip CPU), closed-set scoring of roster names by TrOCR likelihood, synthetic roster-name training data |
+  | Class list | `roster.py` | built; auto-accept only when reg + name agree, else review |
+  Dropped: TrOCR-base (12 s/strip CPU), Paddle server rec (14-29 s/strip CPU), old ResNet reg readers (`models/reg*.pt`) and the 640 MB `models/trocr_reg` base checkpoint: reference only.
+- **Missing**: pipeline, FastAPI phone upload, review UI, name reader, exam YAML, ~30-50 fresh sheets for the unseen test.
 - Data: `data/samples/` = 163 images `sheet_001..165.jpeg` (old names in `data/rename_map.csv`; 2 duplicate photos in `data/removed_duplicates/`). `data/labels.csv` = 36 labelled sheets (per-question totals q1..q10, `sub_total` still empty). ~127 unlabelled sheets are different students. `data/` is git-ignored.
 
 ## Session note (2026-10-11, later)
@@ -49,7 +57,12 @@ Evaluators copy name, register no. and question-wise marks from graded VIT answe
 - Run TrOCR-small on reg + name, then PaddleOCR PP-OCRv5 rec on both (Paddle install / config / pretrained-weights URL are untested). Compare on val CER, train-vs-val gap, CPU speed; test set (12 sheets) is only a sanity check.
 - Then: `grade_eval/roster.py` (joint reg+name snapping), unseen-sheet test (~30-50 fresh sheets), retrain marks model on the 3-way split.
 
-## Dataset findings
+### Sharing the models (weights are NOT in git: `models/`, `data/`, `dist/` are ignored)
+- GitHub rejects files >100 MB in a repo, so never commit weights. Run `python scripts/package_models.py` -> `dist/grade_eval_models.zip` (~165 MB: marks.pt + trocr_reg_small, with `MANIFEST.txt` sha256 checksums; `--all` adds the experimental name model).
+- Share that zip by: (1) a **GitHub Release** asset on this repo (up to 2 GB per file; Releases page -> Draft a new release -> attach zip), or (2) a private **Hugging Face Hub** model repo, or (3) Google Drive / OneDrive link. Put the link in README.
+- Recipient: `git clone`, `pip install -r requirements.txt` (+ `sentencepiece`), unzip into the project root so files land in `models/`, check the sha256 in `MANIFEST.txt`, then `python scripts/eval_header.py --field reg` to confirm it loads. The `data/` folder (photos, labels) is private and not shared.
+
+### Pending / to figure out tomorrow
 - One fixed VIT cover form: 4 groups x 10 question rows (a|b) + sub-total row, printed in blue.
 - Marks are written in red/green pen, grid is blue, header handwriting blue/black -> separable by colour.
 - Mostly column a, sometimes a and b (add them). Values 0-14, multi-digit, some x.5.
