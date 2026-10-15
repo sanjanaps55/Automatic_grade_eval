@@ -1,42 +1,31 @@
-"""Zero-shot TrOCR on the register-number crop of every aligned labelled sheet; reports exact match.
+"""Score a saved TrOCR header model on CPU: val + test CER/exact and seconds per strip.
 
-Usage: python scripts/eval_header.py [model_name]   (default microsoft/trocr-small-handwritten)
+Usage: python scripts/eval_header.py --field reg|name [--model models/trocr_<field>_small]
 """
-import csv
-import re
 import sys
+import time
 from pathlib import Path
 
-import cv2
+import numpy as np
 import torch
-from PIL import Image
-from transformers import TrOCRProcessor, VisionEncoderDecoderModel
+from transformers import VisionEncoderDecoderModel
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-from grade_eval.validate import repair_reg_no
-
-REG_CROP = (270, 70, 900, 165)   # x0, y0, x1, y1 on the aligned template; skips the printed "Register No :"
+sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "scripts"))
+import finetune_header as fh
 
 
 def main():
-    name = sys.argv[1] if len(sys.argv) > 1 else "microsoft/trocr-small-handwritten"
-    proc = TrOCRProcessor.from_pretrained(name); model = VisionEncoderDecoderModel.from_pretrained(name).eval()
-    rows = list(csv.DictReader(open(ROOT / "data" / "labels_all.csv", encoding="utf-8-sig")))
-    n = ok = fmt = 0; bad = []
-    for r in rows:
-        p = ROOT / "data" / "aligned" / (Path(r["file"]).stem + ".png")
-        if not p.exists(): continue
-        x0, y0, x1, y1 = REG_CROP
-        img = Image.fromarray(cv2.cvtColor(cv2.imread(str(p))[y0:y1, x0:x1], cv2.COLOR_BGR2RGB))
-        with torch.no_grad():
-            ids = model.generate(proc(images=img, return_tensors="pt").pixel_values, max_new_tokens=16)
-        raw = proc.batch_decode(ids, skip_special_tokens=True)[0]
-        pred = repair_reg_no(raw); n += 1
-        fmt += bool(re.fullmatch(r"\d{2}[A-Z]{3}\d{4}", pred)); ok += pred == r["reg_no"]
-        if pred != r["reg_no"]: bad.append((r["file"], r["reg_no"], raw, pred))
-    print(f"{name}: exact {ok}/{n} = {ok / n:.3f} | valid format {fmt}/{n}")
-    for b in bad[:30]: print(b)
+    field = fh.arg("--field", "reg"); path = fh.arg("--model", str(ROOT / "models" / f"trocr_{field}_small"))
+    fh.DEV = "cpu"
+    tok = fh.load_tokenizer(path)
+    model = VisionEncoderDecoderModel.from_pretrained(path, torch_dtype=torch.float32).eval()
+    X, y, sp, _, _ = fh.load(field)
+    for k, tag in ((1, "VAL"), (2, "TEST")):
+        idx = np.where(sp == k)[0]; t0 = time.time()
+        cer, ex, pred = fh.score(model, tok, X[idx], [y[i] for i in idx], field, tag)
+        print(f"    {(time.time() - t0) / len(idx):.2f} s/strip on CPU")
+        print("    wrong:", [(y[i], p) for i, p in zip(idx, pred) if p.lower() != y[i].lower()])
 
 
 if __name__ == "__main__":

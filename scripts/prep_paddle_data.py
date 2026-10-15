@@ -12,8 +12,20 @@ import cv2
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "scripts"))
-from finetune_header import load
+sys.path.insert(0, str(ROOT))
+from grade_eval.split import NAMES, split_of      # numpy only: no torch, so it also runs after Paddle has been installed
+
+INV = {v: k for k, v in NAMES.items()}
+
+
+def load(field):
+    """-> X uint8 (N,H,W), y, split array (0/1/2), SX, SY (synthetic, reg only)."""
+    if field == "name":
+        r = np.load(ROOT / "data" / "name_real.npz")
+        return r["X"], [str(v) for v in r["y"]], np.array([INV[str(s)] for s in r["split"]]), None, None
+    r = np.load(ROOT / "data" / "reg_real.npz"); s = np.load(ROOT / "data" / "reg_synth.npz")
+    y = [str(v) for v in r["y"]]
+    return r["X"], y, np.array([split_of(v) for v in y]), s["X"], [str(v) for v in s["y"]]
 
 
 def arg(name, default):
@@ -24,7 +36,6 @@ def arg(name, default):
 def write(out: Path, field: str, n_syn: int):
     X, y, sp, SX, SY = load(field)
     d = out / field; (d / "img").mkdir(parents=True, exist_ok=True)
-    X = (X[:, 0].numpy() * 255).astype(np.uint8)
     lists = {"train": [], "val": [], "test": []}
 
     def save(img, text, key, name):
@@ -39,7 +50,7 @@ def write(out: Path, field: str, n_syn: int):
         for r in range(rep[sp[i]]):
             save(X[i], y[i], key, f"{key}_{i}_{r}")
     if field == "reg" and n_syn:
-        S = (SX[:, 0].numpy() * 255).astype(np.uint8)
+        S = SX
         for j in np.random.RandomState(0).choice(len(SY), n_syn, replace=False):
             save(S[j], SY[j], "train", f"syn_{j}")
     for k, v in lists.items():

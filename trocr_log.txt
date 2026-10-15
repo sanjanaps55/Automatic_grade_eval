@@ -1,0 +1,12 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/478 [00:00<?, ?it/s]Loading weights:  38%|###8      | 183/478 [00:00<00:00, 1828.20it/s]Loading weights:  85%|########4 | 406/478 [00:00<00:00, 2063.66it/s]Loading weights: 100%|##########| 478/478 [00:00<00:00, 2114.45it/s]
+[transformers] [1mVisionEncoderDecoderModel LOAD REPORT[0m from: microsoft/trocr-base-handwritten
+Key                         | Status  | 
+----------------------------+---------+-
+encoder.pooler.dense.bias   | MISSING | 
+encoder.pooler.dense.weight | MISSING | 
+
+Notes:
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+params 333 M | device cpu | real train 95 val 25 test 12
+  [zero-shot val] exact 0.000 | after repair 0.000 | valid format 0.000 | char acc 0.058 (n=25)
