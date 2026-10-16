@@ -1,0 +1,96 @@
+# sheet | reg_no | name | marks q1,q2,... (a|b = two columns, x+y = written sum, - = dash/0, ? = UNSURE) | written sub-total | FLAGS
+044 | 24BCE1984? | Prashant Kum? | 5,10,4,8,8 | 35 | FLAG reg last digit unsure; surname cut off; Q4 overwritten; sum matches
+046 | 24BCE1781 | Akshat Raj | 9,2,-,2,4 | 17 | sum matches
+047 | 24BCE1290 | Aravinda Kan? | ? | ? | FLAG UNREADABLE marks (heavy overwriting, scribbled sub-total); needs manual labelling
+048 | 24BCE1321 | Anush V | 2+1+1+2,9,9|3,0|5 | 32 | sum matches
+049 | 24BCE1242 | Kanha Arjun Ja? | 2+1+1+2?,9?,3|2,1|0 | 30? | FLAG heavy overwriting; sub-total scribbled/circled "30" -> my reads sum to 27, does NOT match; needs manual check
+050 | 24BCE1389 | Muthu Venka? | 2|3+1+2?,7,4|1,2|6 | 28 | Q1 terms partly struck; sum 8+7+5+8=28 matches; FLAG Q1 only
+051 | 23BPS1203 | Riddhish Bo? | 8.5,8,9.5,10,8 | 44 | "8k"/"9k" read as x.5 (sum matches 44); "08"=8; FLAG surname cut off
+052 | 24BYB1048 | V Keshav S? | 2,0,2.5,5,7 | 16.5 | Q1 "02", Q2 "NA"=0, Q3 "2k"=2.5, Q5 "07"; sum matches 16.5
+054 | 24BCE1273 | K Tejovanth | 1,4,6,8,6 | | no sub-total
+055 | 24BCE1302 | Adluri Ravi K? | 4,4?,5,7,8 | | FLAG Q2 "4" struck through; surname cut off; no sub-total
+056 | 24BRS1017? | Saumya? | 7,5.5,9,3,8 | 32.5 | sum matches (Q1 "07", Q2 "5k"=5.5); FLAG reg no and name unsure
+058 | 24BCE1521 | Murgesh K? | 5,4,6,2,8 | | FLAG name unsure; no sub-total
+059 | 24BCE13?? | Sumeet Suman? | 8,4,7,8,4 | | FLAG reg no overwritten and cut off (old one struck out); no sub-total
+060 | 24BCE1542 | Vivin Arya | 7,9?,4|1?,3,1 | | FLAG Q2 "3+4" struck out and 9 written beside; Q3 "4|1" unclear; no sub-total
+062 | 24BCE1526 | Sanath G? | 2,10,0,3,7 | | FLAG surname cut off; no sub-total
+063 | 24BCE1611 | Vineet Verm? | 4,4,7,7,5 | | FLAG surname cut off; no sub-total
+064 | 24BCE1647 | Rithvik Saran? | 3?,8,7,5,5 | | FLAG Q1 could be 3 or 8; no sub-total
+066 | 24BCE1591 | Vemulapalli H I N? | 5,9,7,2,4 | | FLAG name partly cut off; no sub-total
+067 | 23BCE1462 | Saksham Kh? | 4|6,8,10,3+3+?+?+2,6 | | FLAG Q4 terms overlap printed "14", unclear; reg no first digits "28"/"23"?; no sub-total
+068 | 23BCE1480 | Madhav Sharma? | 4|5,8,9+1,3+3+1+2,3+1 | | FLAG surname cut off; no sub-total
+070 | 23BCE1374 | Sanjna S? | 3|2?,5,10,3+3+1+1?,- | | FLAG Q1 b digit unclear (2 or 4); Q4 last terms struck/unclear; Q5 dash=0; no sub-total
+071 | 23BCE1420 | Ananti? | 1|3,6,6,3+3+1+2,8 | | FLAG name unsure; no sub-total
+072 | 23BCE5060? | Posem Reddy Susm? | 4|1?,5,4,2+2+1+2,2 | | FLAG Q1 b unclear; Q4 first term struck/unclear; reg no unsure; no sub-total
+074 | 23MIS1092 | Alshia J V | 5|3,4+?,1|2?,0|1,1? | | FLAG Q2/Q3 heavy strike marks and a big tick; Q5 "1" unclear; no sub-total
+075 | 23BCE1507 | Lavisha Keshw? | 3|4,8?|1,8,3+2+1+2,7 | | FLAG Q2 "8" struck, replaced by 1?; surname cut off; no sub-total
+076 | 23MIS1027 | T C Shirapti? | 3,7?+2?,8,2?+1,10 | | FLAG Q2/Q4 heavy strike lines, unreadable; no sub-total
+078 | 23MIS1037 | Srividya Raja? | 2,7,2,1,1 | | FLAG all marks have strike/tick lines through them; surname cut off; no sub-total
+079 | 23MIS1056 | K Amalna? | 4|2,7|3,6|1,5,8 | | FLAG Q1/Q2 overlapping strokes; name unsure; no sub-total
+080 | 23BEE1078 | N Karthik | 5,12,1,8 | 26 | sum matches (Q1 scribbled over, 5 inferred); same student as labelled? see sheet_160 (23BEE1078 too)
+082 | 23BEE1105 | Tanmay Kuma? | 4,5,13,- | 22 | Q4 dash=0; sum matches
+083 | 23BEE1082 | Deepak | -,11,12,3 | 26 | Q1 dash=0; sum matches
+084 | 23BEE1083 | Kartik | 4,12,0,8+1 | 25 | sum matches
+086 | 23BEE1070 | Vinayak Vinod | -,15,13,14 | 42 | Q1 dash=0; sum matches
+087 | 23BEE1071 | Yashwa? | 1,8,0,7 | 16 | Q3 scribbled 0; sum matches; FLAG name unsure
+088 | 23BEE1117 | Aaradhya Sha? | 4,10,10,8 | 32 | sum matches; FLAG surname cut off
+090 | 23BEE1098 | S Dheepak? | 4,12,12,12 | 40 | Q3 overwritten; sum matches; FLAG name unsure
+091 | 23BEE1079 | Abhishek Kumar | -,8+2,3,7 | 20 | sub-total written "18+2"; sum matches
+092 | 23BEE107? | Saarang B | 4,13,13,8 | 38 | sum matches; FLAG reg last digit unclear (7 or 9); labelled sheet_093 also 23BEE1074 - check
+094 | 23BEE1072 | M Vedanth | 5,10,-,13 | 28 | sum matches; FLAG same student as labelled sheet_085 (23BEE1072, marks 5,10,0,13) - re-photo
+095 | 23BEE1118 | Lavesh Bh? | 5,12,11,8 | 36 | sum matches; FLAG surname cut off
+096 | 23BEE1087 | Muni Bhaghirat? | 5,12,4,6+2 | 27+2 | sum 29 matches; FLAG surname cut off
+098 | 23BEE1100 | Gaurav Sha? | 3,14,8,6+4 | 35 | sum matches; FLAG surname cut off
+099 | 23BEE1073 | P Harshith | -,10,12,8 | 30 | Q1 dash=0; sum matches
+100 | 23BEE1106 | V Hari Chara? | 3,11,2,15 | 31 | sum matches; FLAG surname cut off
+102 | 24MIS11?? | Harshok? | 4,1,0,4,9|1 | 19 | sum matches; FLAG reg no cut off/unsure, name unsure; Q5 9 drawn over a scribble
+103 | 24MIS1100 | Sashank Sekhar | 3,2|3,5,4,10 | 24|3 | sum 27 matches; Q2 "3" has tick/strike; FLAG surname partly cut off
+104 | 24MIS101? | A Lohit? | 5|3,3|1,8,6|2,10 | 32|6 | sum 38 matches; FLAG reg no cut off (24MIS1011?)
+106 | 24MIS1098 | Adithyan V P | 5|2,3,2,3,4 | 17|2 | sum 19 matches; Q1 Q2 stroke lines
+107 | 23BCE1369 | Shubham A? | 2|1?,6,9,3+2+1+2,4+2 | | FLAG Q1 b unclear; surname cut off; no sub-total
+108 | 24MIS1055? | O Sai Kushal | 4|1,6|5,2|4,5,5|2 | 22|12 | a-column 22 and b-column 12 both match; FLAG reg no first digits unsure (29 or 24?); curled page
+110 | 23BCE1547 | Ashley Rodr? | 2,6,9,3+2+1+2,4 | | FLAG Q1 has an extra dash (b?); surname cut off; no sub-total
+111 | 23BCE5036 | Sara Arora | 4|4,5+2?|6,8,2+3+1+2?,8 | | FLAG Q2/Q4 heavy overwriting; no sub-total
+112 | 23BCE1880 | Jia Shah | 1?|3,5,6,3+2+1?,4 | | FLAG Q1 a "1" is a stroke; Q4 middle term struck; no sub-total
+114 | 25MML1026 | Annja Te? | 2,1,9,6 | | FLAG surname cut off; Q1 has tick; curled page; no sub-total
+115 | 23BCE1621 | P Vivek | 1+2,2?,3+8?+1,2,3 | | FLAG Q2/Q3/Q4 struck, unclear; no sub-total
+116 | 25MML1009 | Liya Elizabeth Raju | 9,9,15,9 | 42 | UNALIGNED photo (full page visible); grand total 42 matches
+118 | 25MML1008 | Debstri Ghosh? | 2,1|1?,7,4 | 15 | UNALIGNED photo; grand total 15; FLAG Q2/Q3 hard to read (my reads sum to 14-15)
+119 | 25MML1020 | Shivanshika Agarwal | 6,7?,13,12 | 40 | UNALIGNED photo; grand total 40 but my sum is 38: FLAG Q2 may be 9
+120 | 25MML1021 | P Harish | 5|3,4|2?,11?,- | 25 | UNALIGNED photo; grand total 25; FLAG Q2/Q3 heavily overwritten, unclear
+122 | 21BAI1422 | Manvita Balla? | 0,1,0,0,2 | 3 | green pen; sum matches; FLAG surname cut off
+123 | 21BAI1084 | Sujeeth Sund? | 0,1,11,7,- | 19 | Q5 dash=0; sum matches; FLAG surname cut off, Q1/Q2 have leading dash
+124 | 21BAI1051 | Shreyas Padhi | 2,1,3,0,8,0 | 14 | sum matches; Q6 present
+126 | 24BCE1091 | Harsh Disa? | 0|1,0,0|0,0|0 | 24? | FLAG sub-total scribbled; extra "1K" next to Q1 (b col of next group?); my sum 1 vs written 24?; needs manual check
+127 | 24BCE1119 | S Tharun P? | ? | 28 | FLAG UNREADABLE: heavy overwriting/arithmetic in cells; circled total 28; needs manual labelling
+128 | 24BCE1036 | Devesh Naidu? | 2|3,8,0|2?,3|4?+1,- | 26 | FLAG Q3/Q4 heavy overwriting; sub-total scribbled with "26" circled
+130 | 24BCE1043 | Guru Rithis? | ? | ? | FLAG UNREADABLE: heavy overwriting and scribbled sub-total; needs manual labelling
+131 | 22BRS1270 | P Sanjana | 1|1,2,0|0,0|0 | 4 | sub-total "04"; sum matches 4; FLAG reg no 1270 vs 1270? ok
+132 | 23BCE1248 | Sanjay Kumar | 2|2.5?,7+1,5|0,0|6 | 23 | FLAG Q1 b and Q2 heavily overwritten; sum 2+2.5+8+5+6=23.5 vs 23
+134 | 23BCE1429 | Aneek Anan? | 5,10,2,10,5 | 32 | sum matches; FLAG surname cut off
+135 | 24BCE1010 | Ayush Pandey | 5,5?,2,0,5 | 18 | FLAG Q2 heavily overwritten, inferred from sub-total (sum must be 18)
+136 | 24BCE1050 | Gaav Mukesh? | 8,10,8,9,10 | 45 | Q1 scribbled over, 8 inferred from sub-total 45; FLAG name unsure
+138 | 23BAI1107 | Mishtu Jain? | 10,12,11,11 | 44 | sum matches; FLAG Q3 overwritten; name unsure
+139 | 23BAI1422 | Sanjana Reddy | 10,12,9,16 | 47 | sum matches; FLAG sheet_007 has the same name+reg_no but DIFFERENT marks (15,13,7,10=45): check which reg no is right
+140 | 23BAI1002 | Mathiyazhag? | 2,0,0,5 | 7 | sum matches; FLAG surname cut off
+142 | 23BAI1179? | Athurva Sh? | 7,7,9,10 | 33 | sum matches; FLAG Q1 overwritten (struck 7, replaced); reg no and name unsure
+143 | 23BAI1145 | Arnav Josh? | 10,12,10,10 | 42 | sum matches; FLAG surname cut off
+144 | 23BEE1100 | Gaurav Sha? | 3,14,8,6+4 | 35 | RE-PHOTO of sheet_098 (same student, same marks)
+146 | 23BEE1079 | Abhishek Kumar | -,8+2,3,7 | 20 | RE-PHOTO of sheet_091 (same student, same marks)
+147 | 23BEE1072 | M Vedanth | 5,10,-,13 | 28 | RE-PHOTO of sheet_094 and labelled sheet_085 (same student, same marks)
+148 | 23BEE1118 | Lavesh Bh? | 5,12,11,8 | 36 | RE-PHOTO of sheet_095 (same student, same marks)
+150 | 23BEE1071 | Yashwa? | 1,8,0,7 | 16 | RE-PHOTO of sheet_087 (same student, same marks)
+151 | 23BEE1105 | Tanmay Kuma? | 4,5,13,- | 22 | RE-PHOTO of sheet_082 (same student, same marks)
+152 | 23BEE1083 | Kartik | 4,12,0,8+1 | 25 | RE-PHOTO of sheet_084 (same student, same marks)
+154 | 23BEE1070 | Vinayak Vinod | -,15,13,14 | 42 | RE-PHOTO of sheet_086 (same student, same marks)
+155 | 23BEE1099 | Sushant Bane? | -,10,12,3 | 25 | sum matches; RE-PHOTO of labelled sheet_097 (same student, same marks)
+156 | 23BEE1076 | Varnika Gu? | -,10,12,4 | 26 | sum matches; RE-PHOTO of labelled sheet_089 (same student)
+157 | 23BEE1098 | S Dheepak? | 4,12,12,12 | 40 | RE-PHOTO of sheet_090 (same student, same marks)
+158 | 23BEE1111 | Anirudh Acc? | 4,12,12,10 | 38 | sum matches; RE-PHOTO of labelled sheet_081 (same student, same marks)
+159 | 23BEE1074 | Abhinav R | 5,12,10,10 | 37 | sum matches; RE-PHOTO of labelled sheet_093 (same student, same marks)
+160 | 23BEE1078 | N Karthik | 5,12,1,8 | 26 | RE-PHOTO of sheet_080 (same student, same marks)
+161 | 23BEE1117 | Aaradhya Sha? | 4,10,10,8 | 32 | RE-PHOTO of sheet_088 (same student, same marks)
+162 | 23BEE1106 | V Hari Chara? | 3,11,2,15 | 31 | RE-PHOTO of sheet_100 (same student, same marks)
+163 | 23BEE1073 | P Harshith | -,10,12,8 | 30 | RE-PHOTO of sheet_099 (same student, same marks)
+164 | 23BEE107? | Saarang B | 4,13,13,8 | 38 | RE-PHOTO of sheet_092; FLAG reg last digit unclear
+165 | 23BEE1087 | Muni Bhaghirat? | 5,12,4,6+2 | 27+2 | RE-PHOTO of sheet_096 (same student, same marks); FLAG surname cut off

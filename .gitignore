@@ -9,6 +9,11 @@ data/*
 !data/roster_test.csv
 !data/name_real.npz
 !data/reg_real.npz
+!data/rename_map.csv
+!data/cells.npz
+!data/label_work/
+data/label_work/*
+!data/label_work/records.txt
 samples/
 models/
 *.pt
