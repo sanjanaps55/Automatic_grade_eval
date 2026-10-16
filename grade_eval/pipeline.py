@@ -7,6 +7,7 @@ Anything uncertain (could not align, unreadable/complex marks row, marks outside
 validation) is stored with status needs_review and reasons; only clean sheets write to students/marks.
 The name reader is not built yet: the name comes from the roster when the register number matches, else it is empty.
 """
+import json
 import re
 import sys
 from pathlib import Path
@@ -110,8 +111,13 @@ class GradePipeline:
     def process(self, data: bytes, filename: str = "") -> dict:
         h = db.hash_image(data)
         out = {"file": filename, "hash": h, "reg_no": "", "name": "", "questions": {}, "sub_total": None, "reasons": []}
-        if db.sheet_exists(self.conn, h):
-            out["status"] = "duplicate"
+        row = self.conn.execute("SELECT * FROM sheets WHERE image_hash = ?", (h,)).fetchone()
+        if row is not None:                                  # same photo seen before: report the stored result
+            ex = json.loads(row["extracted"])
+            out.update(status="duplicate", previous_status=row["status"], reg_no=row["reg_no"] or "",
+                       name=ex.get("name", ""), reg_raw=ex.get("reg_raw", ""), sub_total=ex.get("sub_total"),
+                       questions={int(q): v for q, v in ex.get("questions", {}).items()},
+                       reasons=json.loads(row["reasons"]), image=h)
             return out
 
         img = load_image(data)
@@ -123,7 +129,8 @@ class GradePipeline:
         aligned = res.image
         if self.save_aligned:
             self.save_aligned.mkdir(parents=True, exist_ok=True)
-            cv2.imwrite(str(self.save_aligned / (Path(filename).stem + ".png")), aligned)
+            cv2.imwrite(str(self.save_aligned / (h + ".png")), aligned)
+            out["image"] = h
 
         reg_raw = self.read_reg(aligned)
         questions, sub_total, confs, reasons = self.read_marks(aligned)
