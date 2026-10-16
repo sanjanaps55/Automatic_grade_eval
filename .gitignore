@@ -3,7 +3,12 @@ __pycache__/
 .venv/
 .pytest_cache/
 .ipynb_checkpoints/
-data/
+data/*
+!data/labels_all.csv
+!data/split.csv
+!data/roster_test.csv
+!data/name_real.npz
+!data/reg_real.npz
 samples/
 models/
 *.pt
