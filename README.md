@@ -64,3 +64,16 @@ The sheet photos, labels and class roster (`data/`) are private and are not shar
 - **~30-50 fresh sheets** from different students for a true unseen test, and more labelled name strips.
 
 See `PLAN.md` for the roadmap, results of every experiment and the current status.
+
+## Running the pipeline (branch `naveen`)
+Weights go in `models/` (see above). Then:
+```
+# batch over a folder -> data/grades.db + marks.xlsx (review items listed with reasons, not written to Excel)
+python scripts/run_pipeline.py data/samples_new [--roster class.xlsx] [--db data/grades.db] [--xlsx marks.xlsx]
+
+# phone upload + review page (open http://<pc-ip>:8000 on the phone, same Wi-Fi)
+set ROSTER=class.xlsx            # optional
+python -m uvicorn grade_eval.server:app --host 0.0.0.0 --port 8000
+```
+Reads register no. (TrOCR) and Q1-Q10 marks (ResNet+CTC). Rows with written sums / a|b, low confidence, marks beyond Q10 or an
+unaligned photo go to the `/review` page. The name reader is not built: the name comes from the roster when matched.
