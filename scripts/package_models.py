@@ -9,7 +9,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FINAL = ["models/marks.pt", "models/trocr_reg_small"]                # finalised so far (see PLAN.md)
+FINAL = ["models/marks.pt", "models/marks_sum.pt", "models/trocr_reg_small"]                # finalised so far (see PLAN.md)
 EXTRA = ["models/trocr_name_small"]                                  # experimental: weak, not for use
 RESNET_REG = ["models/reg_resnet_split.pt", "models/reg.pt"]        # older ResNet+BiLSTM+CTC register-no. reader (14 MB each); fallback, not re-scored on the 3-way split
 

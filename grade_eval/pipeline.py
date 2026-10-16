@@ -64,6 +64,11 @@ class GradePipeline:
         self.marks_net.load_state_dict(torch.load(ROOT / "models" / "marks_sum.pt", map_location="cpu"))
         self.marks_net.eval()
         self.n_questions = n_questions
+        self.name_model = None
+        name_path = ROOT / "models" / "trocr_name_small"      # weak free-text reader: used only as a roster hint
+        if name_path.exists():
+            self.name_model = VisionEncoderDecoderModel.from_pretrained(name_path, torch_dtype=torch.float32).to(self.dev).eval()
+            self.name_tok = fh.load_tokenizer(str(name_path))
         self.conn = db.connect(db_path)
         self.roster = roster or []
         self.config = config or default_config()
@@ -73,6 +78,12 @@ class GradePipeline:
     def read_reg(self, aligned: np.ndarray) -> str:
         strip = torch.tensor(header.ink_strip(aligned)).unsqueeze(0).unsqueeze(0)
         return self.fh.decode(self.reg_model, self.tok, strip.to(self.dev), "reg")[0]
+
+    def read_name(self, aligned: np.ndarray) -> str:
+        if self.name_model is None:
+            return ""
+        strip = torch.tensor(header.name_strip(aligned)).unsqueeze(0).unsqueeze(0)
+        return self.fh.decode(self.name_model, self.name_tok, strip.to(self.dev), "name")[0]
 
     def read_marks(self, aligned: np.ndarray, n_questions: int | None = None):
         """-> (questions {q: {"a", "raw", "conf"}}, sub_total|None (single group only), confidences, reasons, crosschecked).
@@ -159,15 +170,17 @@ class GradePipeline:
         reg_no, name = reg_raw, ""
         reg_exact = False
 
+        name_read = self.read_name(aligned) if self.roster else ""
         if self.roster:
-            m = roster_mod.match_sheet(reg_raw, "", self.roster)
+            m = roster_mod.match_sheet(reg_raw, name_read, self.roster)
             if m.row is not None and m.status != "review":
                 reg_no, name = m.row.reg_no, m.row.name
-                reg_exact = reg_no == reg_raw
+                reg_exact = reg_no == reg_raw and m.status == "auto"      # exact AND the name agrees
                 if reg_no != reg_raw:
-                    reasons.append(f"register no. read '{reg_raw}', snapped to roster {reg_no}")
+                    reasons.append(CONFIRM + f"register no. read '{reg_raw}', matched {reg_no} on the class list "
+                                   f"({'name agrees' if m.status == 'auto' else 'name not readable'})")
             else:
-                reasons.append("register no. not matched to roster: " + "; ".join(m.reasons))
+                reasons.append("register no. not matched to the class list: " + "; ".join(m.reasons))
         elif not REG_NO_RE.match(reg_raw):
             pass  # validate_sheet reports it
 
@@ -178,11 +191,12 @@ class GradePipeline:
             elif not crosschecked and (any("+" in v["raw"] for v in questions.values()) or min(v["conf"] for v in questions.values()) < SOLO_CONF):
                 reasons.append(CONFIRM + "marks read, but no written sub-total to cross-check them against")
             if self.roster and not reg_exact:
-                reasons.append(CONFIRM + "register number not an exact roster match")
+                reasons.append(CONFIRM + "register number matched the class list but the handwritten name could not confirm it")
             elif not self.roster:
                 reasons.append(CONFIRM + "register number read by OCR and no class list uploaded to check it")
         out.update(reg_no=reg_no, name=name, questions=questions, sub_total=sub_total, reasons=reasons, reg_raw=reg_raw)
         extracted = {k: out[k] for k in ("file", "reg_raw", "reg_no", "name", "sub_total")}
+        extracted["name_read"] = name_read
         extracted["questions"] = {str(q): v for q, v in questions.items()}
         extracted["crosschecked"] = crosschecked
         out["status"] = db.save_sheet(self.conn, h, reg_no, name, self.config.course_code, questions, reasons, extracted)

@@ -21,6 +21,12 @@ Evaluators copy name, register no. and question-wise marks from graded VIT answe
 - **Missing**: pipeline, FastAPI phone upload, review UI, name reader, exam YAML, ~30-50 fresh sheets for the unseen test.
 - Data: `data/samples/` = 163 images `sheet_001..165.jpeg` (old names in `data/rename_map.csv`; 2 duplicate photos in `data/removed_duplicates/`). `data/labels.csv` = 36 labelled sheets (per-question totals q1..q10, `sub_total` still empty). ~127 unlabelled sheets are different students. `data/` is git-ignored.
 
+## Status (2026-10-16, branch `naveen`)
+- **Built**: `grade_eval/pipeline.py` (photo -> read -> match -> validate -> SQLite), `grade_eval/server.py` (sets, class-list upload, number of questions, results table, per-sheet fix page, confirm-all, Excel in class-list order), `scripts/run_pipeline.py`, `start.bat`, `scripts/score_pipeline.py`, `scripts/train_marks_sum.py` (`models/marks_sum.pt`, reads `3+5+1` / a|b as sums). 19 tests pass.
+- **Baseline vs now** on the 140 labelled sheets (Q1-Q10 rows, `score_pipeline.py --split all`): old reader flagged 338/1320 rows (255 were written sums) and only 14 sheets had no flag; sum reader flags 196, 33 sheets unflagged, but 17 rows auto-read wrong (was 3) because the model is overconfident when it misreads a sum or a tick.
+- **Safety design**: model confidence is NOT trusted (wrong reads at 0.95-1.0). A sheet is auto-written only when the question marks match the written sub-total (or clear single numbers >= 0.97) AND the register number matches the class list exactly. Everything else is "to check" (glance + save) or "needs fix". Only 4/132 sheets carry a matching written sub-total, so most sheets land in "to check" by design.
+- **Open**: more sum/a|b training rows (46 real), ticks/strikes read as digits, name reader (see below), 8 curled sheets fail to align, Paddle bake-off not run.
+
 ## Session note (2026-10-11, later)
 - Removed 20 re-photos (same reg_no, near pixel-identical) from `data/samples/` -> `data/removed_duplicates/`; `labels_draft.csv` now 74 rows (backup `.bak`), samples 143. Kept the sheet already in labels.csv, else lowest number.
 - Reg no format: 2 digits + 3 capital letters + 4 digits. Draft rows 056, 059, 102, 164 had truncated reg nos (still `?`).

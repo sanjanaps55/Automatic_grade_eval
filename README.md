@@ -65,6 +65,24 @@ The sheet photos, labels and class roster (`data/`) are private and are not shar
 
 See `PLAN.md` for the roadmap, results of every experiment and the current status.
 
+## Using it (teacher guide)
+1. Double-click `start.bat`, open the address it prints (PC: `http://localhost:8000`; phone on the same Wi-Fi: the IP shown).
+2. **Start a new set**: give it a name, upload the class Excel/CSV (columns: register number, name), set the number of questions.
+3. **Upload photos** of the graded cover pages (camera or gallery, many at once).
+4. Each sheet becomes one of three tiers:
+   - **confirmed**: the question marks add up to the written sub-total (or are clear single numbers) and the register number matches the class list. Written to the Excel.
+   - **to check**: read fine but nothing to cross-check it against. Open it, glance at the photo next to the values, press *Save as confirmed* (or *Confirm all* when you trust the batch).
+   - **needs fix**: something unclear. Correct the boxes by hand and save.
+5. **Download Excel**: your class list in your order with the marks in each student's row; absent students stay blank; a second sheet lists what still needs attention.
+
+Written sums such as `3+5+1` and a|b entries are read and added; the raw read is shown on hover. Nothing is guessed: unclear rows are held back.
+
+## Developer notes (branch `naveen`)
+- `grade_eval/pipeline.py`: photo -> align -> reg no. (TrOCR) + marks (ResNet+CTC with `+`) -> roster match -> validate -> SQLite.
+- `grade_eval/server.py`: the web app (sets under `data/sets/<name>/`). `scripts/run_pipeline.py`: batch CLI.
+- `scripts/train_marks_sum.py` trains the sum-capable reader -> `models/marks_sum.pt` (needs `data/cells.npz`, `data/label_work/records.txt`).
+- `scripts/score_pipeline.py` scores the readers on `data/labels_all.csv` (row accuracy, auto-wrong, sheet-level acceptance).
+
 ## Running the pipeline (branch `naveen`)
 Weights go in `models/` (see above). Then:
 ```
