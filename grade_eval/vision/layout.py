@@ -38,6 +38,7 @@ def _get_template():
 class Alignment:
     image: np.ndarray   # photo warped into template coordinates
     inliers: int
+    H: np.ndarray | None = None   # photo -> template homography
 
 
 def align(img: np.ndarray) -> Alignment | None:
@@ -56,7 +57,7 @@ def align(img: np.ndarray) -> Alignment | None:
     if H is None or int(mask.sum()) < MIN_INLIERS:
         return None
     th, tw = tpl.shape[:2]
-    return Alignment(cv2.warpPerspective(img, H, (tw, th), flags=cv2.INTER_CUBIC), int(mask.sum()))
+    return Alignment(cv2.warpPerspective(img, H, (tw, th), flags=cv2.INTER_CUBIC), int(mask.sum()), H)
 
 
 def cell_boxes() -> dict:

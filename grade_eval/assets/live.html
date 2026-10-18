@@ -1,0 +1,154 @@
+<!doctype html><html lang=en><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Live scanning</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mut:#667;--ok:#0a7d33;--bad:#c2410c;--chk:#a16207;--ln:#dde1e6;--ac:#2563eb}
+@media(prefers-color-scheme:dark){:root{--bg:#111418;--card:#1b2027;--tx:#e8eaed;--mut:#9aa4b2;--ok:#4ade80;--bad:#fb923c;--chk:#facc15;--ln:#2d343d;--ac:#60a5fa}}
+*{box-sizing:border-box}body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--tx);padding:12px;max-width:640px;margin:auto}
+h1{font-size:19px;margin:4px 0 8px}.mut{color:var(--mut);font-size:13px}
+#cam{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:3/4;display:none}
+#cam video,#ov{position:absolute;inset:0;width:100%;height:100%}#cam video{object-fit:fill}
+#next{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:#16a34aee;color:#fff;text-align:center;padding:16px}
+#next .big{font-size:76px;line-height:1}#next .t{font-size:26px;font-weight:700}#next .s{font-size:17px;opacity:.95}
+#msg{margin:10px 0;padding:14px;border-radius:10px;font-size:18px;font-weight:600;text-align:center;background:var(--card);border:2px solid var(--ln)}
+#msg.warn{border-color:#f59e0b}#msg.good{border-color:#22c55e;color:var(--ok)}#msg.busy{border-color:var(--ac);color:var(--ac)}#msg.next{border-color:#22c55e;background:#22c55e22;color:var(--ok)}
+.row{display:flex;gap:10px}.row button{flex:1}
+button{font-size:17px;padding:13px;border:0;border-radius:10px;background:var(--ac);color:#fff}
+button.stop{background:var(--bad)}button.alt{background:transparent;color:var(--ac);border:1px solid var(--ac)}button:disabled{opacity:.4}
+ul{list-style:none;padding:0;margin:8px 0}li{padding:8px 10px;border-bottom:1px solid var(--ln);display:flex;justify-content:space-between;gap:8px}
+a.dl{display:block;text-align:center;font-size:17px;padding:13px;border-radius:10px;background:var(--ac);color:#fff;text-decoration:none}
+.ok{color:var(--ok)}.chk{color:var(--chk)}.bad{color:var(--bad)}a{color:var(--ac)}.card{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:12px;margin:10px 0}
+</style>
+<h1 id=ttl>Live scanning &middot; __SLUG__</h1>
+<div id=cam><video id=v playsinline muted></video><canvas id=ov></canvas><div id=next><div class=big>&#10003;</div><div class=t id=nt></div><div class=s id=ns></div><div class=s>(tap here when the next sheet is in place)</div></div></div>
+<div id=msg>Press <b>Start scanning</b>, then hold the phone flat over the first sheet.</div>
+<div class=row><button id=start>Start scanning</button><button id=stop class=stop style="display:none">Stop scanning</button></div>
+<div class=row style="margin-top:8px"><button id=now class=alt style="display:none">Capture now (manual)</button></div>
+<p class=mut id=dbg></p>
+<div class=card><b id=count>0 sheets scanned</b><ul id=list></ul>
+<div id=done style="display:none"><p><a class=dl href="/s/__SLUG__/marks.xlsx" download>Download Excel</a></p>
+<p class=mut>Confirmed sheets are plain; “to check” sheets are highlighted yellow as UNVERIFIED; unreadable ones are listed on the second sheet. <a href="/s/__SLUG__">Open the results</a> to check the rest.</p></div></div>
+<script>
+const SLUG="__SLUG__", TEST=__TEST__, base="/s/"+SLUG+"/live";
+const $=id=>document.getElementById(id);
+if(TEST){$("ttl").textContent="Camera test (nothing is saved)";}
+const v=$("v"), cam=$("cam"), msg=$("msg");
+const INTERVAL=120, NEED_OK=2, MOTION_MAX=9, SIDE=1800;
+let stream=null, scanning=false, mode="ready", okCount=0, busy=false, prev=null, moved=false, calm=0, n=0, wake=null;
+const tally={confirmed:0,check:0,fix:0};
+const small=document.createElement("canvas"); small.width=32; small.height=24;
+const frame=document.createElement("canvas");
+
+const ov=$("ov"), octx=ov.getContext("2d");
+function draw(quad,cls){
+  ov.width=ov.clientWidth; ov.height=ov.clientHeight; octx.clearRect(0,0,ov.width,ov.height);
+  const col=cls==="good"?"#22c55e":"#f59e0b";
+  // target: where the sheet should sit (the detected sheet is drawn over it)
+  octx.setLineDash([10,8]); octx.lineWidth=3; octx.strokeStyle="#fffa";
+  octx.strokeRect(ov.width*0.1,ov.height*0.1,ov.width*0.8,ov.height*0.8); octx.setLineDash([]);
+  if(!quad) return;
+  octx.lineWidth=5; octx.strokeStyle=col; octx.fillStyle=col+"33"; octx.beginPath();
+  quad.forEach((p,i)=>{const x=p[0]*ov.width,y=p[1]*ov.height; i?octx.lineTo(x,y):octx.moveTo(x,y);});
+  octx.closePath(); octx.fill(); octx.stroke();
+}
+function beep(){try{const a=new (window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator(),g=a.createGain();
+  o.frequency.value=880;g.gain.value=.25;o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+.25);}catch(e){}}
+function showNext(title,sub){$("nt").textContent=title;$("ns").textContent=sub;$("next").style.display="flex";beep();if(navigator.vibrate)navigator.vibrate([120,60,120]);}
+function hideNext(){$("next").style.display="none";}
+function say(text,cls){msg.textContent=text;msg.className=cls||"";cam.className=(cls==="good"||cls==="next")?"good":cls==="warn"?"warn":"";}
+function motion(){
+  const c=small.getContext("2d",{willReadFrequently:true}); c.drawImage(v,0,0,32,24);
+  const d=c.getImageData(0,0,32,24).data, g=new Float32Array(768);
+  for(let i=0;i<768;i++) g[i]=(d[i*4]+d[i*4+1]+d[i*4+2])/3;
+  let m=0; if(prev){for(let i=0;i<768;i++) m+=Math.abs(g[i]-prev[i]); m/=768;}
+  const had=!!prev; prev=g; return had?m:99;
+}
+function blobOf(maxSide,q){
+  const s=Math.min(1,maxSide/Math.max(v.videoWidth,v.videoHeight));
+  frame.width=Math.round(v.videoWidth*s); frame.height=Math.round(v.videoHeight*s);
+  frame.getContext("2d").drawImage(v,0,0,frame.width,frame.height);
+  return new Promise(r=>frame.toBlob(r,"image/jpeg",q));
+}
+async function post(url,blob){
+  const r=await fetch(url,{method:"POST",body:blob,headers:{"Content-Type":"image/jpeg"}});
+  if(!r.ok) throw new Error("server "+r.status);
+  return r.json();
+}
+async function tick(){
+  if(!scanning) return;
+  let wait=INTERVAL;
+  try{
+    const m=motion();
+    if(mode==="next"){                       // wait until the scanned sheet is taken away or swapped
+      if(m>MOTION_MAX){moved=true;calm=0;}
+      else if(moved && ++calm>=4){mode="ready";okCount=0;hideNext();say("Align the next sheet inside the frame","warn");}
+    }else if(m>MOTION_MAX){okCount=0;say("Hold steady","warn");}
+    else{
+      const r=await post(base+"/frame",await blobOf(SIDE,0.8));
+      if(!scanning) return;
+      draw(r.quad,r.state==="ok"?"good":"warn");
+      $("dbg").textContent="camera "+v.videoWidth+"x"+v.videoHeight+" · framing check: "+r.state+(r.ms?" ("+r.ms+" ms)":"")+(r.sharp!=null?" · sharpness "+r.sharp+" · outside "+r.outside+" · matches "+r.inliers:" · form not found");
+      if(r.state==="ok"){ if(++okCount>=NEED_OK){await capture();} else say(r.msg,"good"); }
+      else{okCount=0;say(r.msg,"warn");}
+    }
+  }catch(e){say("Connection problem: "+e.message+". Retrying…","warn");wait=1500;}
+  if(scanning) setTimeout(tick,wait);
+}
+async function capture(){
+  if(busy) return;
+  busy=true; $("now").disabled=true;
+  say("Captured. Reading the sheet… keep the phone still","busy");
+  if(TEST){ n++; showNext("Good - this would be captured","Test only, nothing saved. Move the sheet away to test the next one"); busy=false; mode="next"; moved=false; calm=0; okCount=0; prev=null; return; }
+  try{
+    const r=await post(base+"/capture",await blobOf(3000,0.92));
+    n++; const k=n;
+    const li=document.createElement("li"), left=document.createElement("span"), right=document.createElement("span");
+    left.textContent=k+". reading…"; right.className="mut"; right.textContent="reading…"; li.append(left,right);
+    $("list").prepend(li);
+    $("count").textContent=n+(n===1?" sheet scanned":" sheets scanned");
+    say("✓ Sent. NEXT: place the next sheet","next");
+    showNext("Sheet "+k+" captured - NEXT sheet please","It is being read in the background. Take this sheet away and put the next one in view");
+    follow(r.job,k,left,right);
+  }catch(e){say("Could not send that sheet: "+e.message+". Align again.","warn");}
+  busy=false; $("now").disabled=false; mode="next"; moved=false; calm=0; okCount=0; prev=null;
+}
+async function follow(job,k,left,right){          // fill in the list entry once the PC has read the sheet
+  for(let i=0;i<120;i++){
+    await new Promise(r=>setTimeout(r,1000));
+    try{
+      const r=await (await fetch(base+"/job/"+job)).json();
+      if(r.state==="reading") continue;
+      if(r.state==="error"){right.className="bad";right.textContent="failed";left.textContent=k+". "+r.msg;return;}
+      tally[r.tier]=(tally[r.tier]||0)+1;
+      right.className=r.tier==="confirmed"?"ok":r.tier==="check"?"chk":"bad"; right.textContent=r.label;
+      left.textContent=""; const b=document.createElement("b"); b.textContent=r.reg||"unknown";
+      const nm=document.createElement("span"); nm.className="mut"; nm.textContent=" "+(r.name||""); left.append(k+". ",b,nm);
+      return;
+    }catch(e){}
+  }
+  right.className="bad"; right.textContent="no answer";
+}
+async function startScan(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    say("The camera needs a secure (https) connection. On the PC use “Open live scanning” and open the https link on the phone.","warn");return;}
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:3840},height:{ideal:2160}},audio:false});
+  }catch(e){say("Camera blocked ("+e.name+"). Allow camera access for this page and try again.","warn");return;}
+  v.srcObject=stream; await v.play(); cam.style.display="block";
+  if(v.videoWidth) cam.style.aspectRatio=v.videoWidth+"/"+v.videoHeight; draw(null);
+  try{wake=await navigator.wakeLock.request("screen");}catch(e){}
+  scanning=true; mode="ready"; okCount=0; prev=null; busy=false;
+  $("start").style.display="none"; $("stop").style.display=""; $("now").style.display=""; $("done").style.display="none";
+  say("Align the sheet inside the frame","warn"); tick();
+}
+function stopScan(){
+  scanning=false; hideNext(); if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null;
+  try{if(wake) wake.release();}catch(e){}
+  cam.style.display="none"; $("start").style.display=""; $("stop").style.display="none"; $("now").style.display="none";
+  $("start").textContent="Start scanning again"; $("done").style.display="";
+  say("Stopped. "+n+" sheet"+(n===1?"":"s")+" scanned: "+tally.confirmed+" confirmed, "+tally.check+" to check, "+tally.fix+" need fixing.","");
+}
+$("next").onclick=()=>{if(mode==="next"){mode="ready";okCount=0;prev=null;hideNext();say("Align the next sheet inside the frame","warn");}};
+$("start").onclick=startScan; $("stop").onclick=stopScan;
+if(TEST){document.head.insertAdjacentHTML("beforeend","<style>#now,#done,.card{display:none!important}#dbg{font-size:15px;color:var(--tx)}</style>");}
+$("now").onclick=()=>{ if(scanning&&!busy) capture(); };
+</script></html>

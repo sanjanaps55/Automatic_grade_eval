@@ -10,3 +10,5 @@ pytesseract
 openpyxl
 pyyaml
 pytest
+segno
+cryptography
