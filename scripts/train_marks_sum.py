@@ -1,6 +1,7 @@
 """Marks reader that also reads written sums / a|b entries: CTC over "0123456789.+" (a|b is treated as a+b).
 
-Usage: python scripts/train_marks_sum.py [--epochs 40]  ->  models/marks_sum.pt
+Usage: python scripts/train_marks_sum.py [--epochs 40] [--mnist 400] [--out models/marks_sum.pt] [--limit N]
+  --mnist N adds N MNIST glyphs per digit to the synthetic-strip glyph bank (downloads MNIST); --limit trains on N rows (smoke test).
 Data: data/cells.npz (row strips) + data/labels_all.csv (row totals) + data/label_work/records.txt (original notation).
 A non-simple row is used for training only when its notation is fully readable (no '?') and its terms add up to the
 labelled row total, so label noise is filtered. Split by student from data/split.csv. Synthetic strips (real single
@@ -74,6 +75,16 @@ def load_records():
             norm = cell.replace("|", "+")
             if re.fullmatch(r"\d{1,2}(\.\d)?(\+\d{1,2}(\.\d)?)*", norm):
                 out[(sheet, q)] = norm
+    extra = ROOT / "data" / "label_work" / "hard_notation.txt"      # notation for hard rows that had only a total (see PLAN.md)
+    if extra.exists():
+        for line in open(extra, encoding="utf-8"):
+            if line.startswith("#") or "|" not in line:
+                continue
+            key, norm = line.strip().split("|", 1)
+            sh, q = key.split("-")
+            norm = norm.replace("|", "+")
+            if re.fullmatch(r"\d{1,2}(\.\d)?(\+\d{1,2}(\.\d)?)*", norm):
+                out.setdefault((f"sheet_{sh}.jpeg", int(q)), norm)
     return out
 
 
@@ -135,13 +146,41 @@ def build_dataset():
             lab = total                                    # single number or blank
         if lab is None:
             continue
-        rows.append((X[i], lab, sp, sheet, q))
+        rows.append((X[i], lab, sp, sheet, q, simple))
     return rows
 
 
+def arg(name, default, cast=str):
+    return cast(sys.argv[sys.argv.index(name) + 1]) if name in sys.argv else default
+
+
+def mnist_glyphs(bank, per_digit):
+    """Add clean handwritten MNIST digits (cropped, dark ink on white) as extra glyphs for the synthetic strips."""
+    from torchvision.datasets import MNIST
+    d = MNIST(str(ROOT / "data" / "mnist"), train=True, download=True)
+    n = {k: 0 for k in bank}
+    for img, lab in zip(d.data.numpy(), d.targets.numpy()):
+        k = str(int(lab))
+        if n[k] >= per_digit:
+            continue
+        g = 1.0 - img.astype(np.float32) / 255
+        ys, xs = np.where(g < 0.5)
+        if len(xs) < 20:
+            continue
+        g = g[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+        if rng.random() < 0.5:                                  # pen strokes are usually thinner/ragged: erode/dilate a little
+            g = cv2.erode(g, np.ones((2, 2), np.uint8)) if rng.random() < 0.5 else cv2.dilate(g, np.ones((2, 2), np.uint8))
+        bank[k].append(g); n[k] += 1
+    return bank
+
+
 def main():
-    epochs = int(sys.argv[sys.argv.index("--epochs") + 1]) if "--epochs" in sys.argv else 40
+    epochs = arg("--epochs", 40, int)
+    out_path = Path(arg("--out", ROOT / "models" / "marks_sum.pt"))
     rows = build_dataset()
+    if "--limit" in sys.argv:
+        n = arg("--limit", 64, int)     # smoke test: a few train rows + a few held-out rows
+        rows = [r for r in rows if r[2] == "train"][:n] + [r for r in rows if r[2] != "train"][:max(8, n // 2)]
     tr = [r for r in rows if r[2] == "train"]
     filled = [r for r in tr if r[1]]; blanks = [r for r in tr if not r[1]]
     keep = rng.choice(len(blanks), min(len(blanks), int(0.5 * len(filled))), replace=False)
@@ -160,6 +199,9 @@ def main():
                 if g.shape[0] >= 14 and g.shape[1] >= 4:
                     bank[lab].append(g)
     print("glyphs:", {k: len(v) for k, v in bank.items()}, flush=True)
+    if "--mnist" in sys.argv:
+        bank = mnist_glyphs(bank, arg("--mnist", 400, int))
+        print("glyphs with MNIST:", {k: len(v) for k, v in bank.items()}, flush=True)
 
     net = make_net(ROOT / "models" / "marks.pt").to(DEV)
     opt = torch.optim.AdamW(net.parameters(), 1e-3, weight_decay=1e-4)
@@ -195,8 +237,8 @@ def main():
             acc = np.mean([a is not None and abs(a - b) < 1e-6 for a, b in zip(val, tru)])
             print(f"ep {ep + 1} loss {tot / (len(perm) / 32):.3f} val value-exact {acc:.3f} ({time.time() - t0:.0f}s/ep)", flush=True)
 
-    (ROOT / "models").mkdir(exist_ok=True)
-    torch.save({k: v.cpu() for k, v in net.state_dict().items()}, ROOT / "models" / "marks_sum.pt")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save({k: v.cpu() for k, v in net.state_dict().items()}, out_path)
     r = evaluate()
     print("\nVALIDATION+TEST (held-out students)")
     for th in (0.0, 0.7, 0.8, 0.9, 0.95):

@@ -1,36 +1,44 @@
 <!doctype html><html lang=en><meta charset=utf-8>
-<meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Live scanning</title>
+<meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Scan sheets</title>
+<link rel=preconnect href="https://fonts.googleapis.com"><link rel=preconnect href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel=stylesheet>
+<link rel=stylesheet href="/ui.css">
 <style>
-:root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mut:#667;--ok:#0a7d33;--bad:#c2410c;--chk:#a16207;--ln:#dde1e6;--ac:#2563eb}
-@media(prefers-color-scheme:dark){:root{--bg:#111418;--card:#1b2027;--tx:#e8eaed;--mut:#9aa4b2;--ok:#4ade80;--bad:#fb923c;--chk:#facc15;--ln:#2d343d;--ac:#60a5fa}}
-*{box-sizing:border-box}body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--tx);padding:12px;max-width:640px;margin:auto}
-h1{font-size:19px;margin:4px 0 8px}.mut{color:var(--mut);font-size:13px}
-#cam{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:3/4;display:none}
+body{max-width:560px;margin:0 auto;padding:12px 14px calc(14px + env(safe-area-inset-bottom))}
+.ptop{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 0 12px}
+.ptop h1{font-size:17px}.ptop a{font-size:13px;font-weight:500;color:var(--mut)}
+#cam{position:relative;background:#101418;border-radius:18px;overflow:hidden;display:none;margin:0 auto;
+  aspect-ratio:var(--ar,.75);width:min(100%,calc(62vh * var(--ar,.75)));width:min(100%,calc(62dvh * var(--ar,.75)));box-shadow:var(--sh)}
 #cam video,#ov{position:absolute;inset:0;width:100%;height:100%}#cam video{object-fit:fill}
-#next{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:#16a34aee;color:#fff;text-align:center;padding:16px}
-#next .big{font-size:76px;line-height:1}#next .t{font-size:26px;font-weight:700}#next .s{font-size:17px;opacity:.95}
-#msg{margin:10px 0;padding:14px;border-radius:10px;font-size:18px;font-weight:600;text-align:center;background:var(--card);border:2px solid var(--ln)}
-#msg.warn{border-color:#f59e0b}#msg.good{border-color:#22c55e;color:var(--ok)}#msg.busy{border-color:var(--ac);color:var(--ac)}#msg.next{border-color:#22c55e;background:#22c55e22;color:var(--ok)}
-.row{display:flex;gap:10px}.row button{flex:1}
-button{font-size:17px;padding:13px;border:0;border-radius:10px;background:var(--ac);color:#fff}
-button.stop{background:var(--bad)}button.alt{background:transparent;color:var(--ac);border:1px solid var(--ac)}button:disabled{opacity:.4}
-ul{list-style:none;padding:0;margin:8px 0}li{padding:8px 10px;border-bottom:1px solid var(--ln);display:flex;justify-content:space-between;gap:8px}
-a.dl{display:block;text-align:center;font-size:17px;padding:13px;border-radius:10px;background:var(--ac);color:#fff;text-decoration:none}
-.ok{color:var(--ok)}.chk{color:var(--chk)}.bad{color:var(--bad)}a{color:var(--ac)}.card{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:12px;margin:10px 0}
+#next{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:#1fa75af2;color:#fff;text-align:center;padding:18px}
+#next .big{width:84px;height:84px;border-radius:50%;background:#fff3;display:grid;place-items:center;font-size:48px;line-height:1}
+#next .t{font-size:21px;font-weight:600}#next .s{font-size:14px;opacity:.95}
+#msg{margin:12px 0;padding:14px 16px;border-radius:14px;font-size:16px;font-weight:600;text-align:center;background:var(--card);box-shadow:var(--sh);border-left:5px solid var(--ln);line-height:1.4}
+#msg.warn{border-left-color:var(--yel)}#msg.good{border-left-color:#22c55e;color:var(--ok)}#msg.busy{border-left-color:var(--ac);color:var(--ac)}#msg.next{border-left-color:#22c55e;background:var(--okb);color:var(--ok)}
+.ctl{position:sticky;bottom:0;display:flex;gap:10px;padding:10px 0;background:linear-gradient(rgba(243,246,251,0),var(--bg) 35%)}
+.ctl button{flex:1;padding:14px;font-size:16px;border-radius:14px}
+button.stop{background:var(--badb);color:var(--bad);box-shadow:none}button.stop:hover{background:#fbd9cf}
+button.alt{background:var(--panel);color:var(--tx);box-shadow:none}
+button:disabled{opacity:.45}
+#dbg{font-size:12px;color:var(--mut);margin:0 0 6px;word-break:break-word}
+ul{list-style:none;padding:0;margin:10px 0 0}
+li{padding:11px 4px;border-bottom:1px solid var(--ln);display:flex;justify-content:space-between;gap:10px;font-size:14px;align-items:center}li:last-child{border:0}
+li .mut{font-size:13px}
+a.dl{display:block;text-align:center;font-weight:600;padding:13px;border-radius:12px;background:var(--ac);color:#fff}
 </style>
-<h1 id=ttl>Live scanning &middot; __SLUG__</h1>
+<div class=ptop><h1 id=ttl>Scan sheets &middot; __SLUG__</h1><a id=back href="/s/__SLUG__">Results</a></div>
 <div id=cam><video id=v playsinline muted></video><canvas id=ov></canvas><div id=next><div class=big>&#10003;</div><div class=t id=nt></div><div class=s id=ns></div><div class=s>(tap here when the next sheet is in place)</div></div></div>
 <div id=msg>Press <b>Start scanning</b>, then hold the phone flat over the first sheet.</div>
-<div class=row><button id=start>Start scanning</button><button id=stop class=stop style="display:none">Stop scanning</button></div>
-<div class=row style="margin-top:8px"><button id=now class=alt style="display:none">Capture now (manual)</button></div>
-<p class=mut id=dbg></p>
-<div class=card><b id=count>0 sheets scanned</b><ul id=list></ul>
-<div id=done style="display:none"><p><a class=dl href="/s/__SLUG__/marks.xlsx" download>Download Excel</a></p>
-<p class=mut>Confirmed sheets are plain; “to check” sheets are highlighted yellow as UNVERIFIED; unreadable ones are listed on the second sheet. <a href="/s/__SLUG__">Open the results</a> to check the rest.</p></div></div>
+<p id=dbg></p>
+<div class=card style="margin-top:6px"><div style="display:flex;justify-content:space-between;align-items:center"><b id=count style="font-weight:600">0 sheets scanned</b></div><ul id=list></ul>
+<div id=done style="display:none;margin-top:12px"><a class=dl href="/s/__SLUG__/marks.xlsx" download>Download Excel</a>
+<p class=mut style="margin-top:10px">Confirmed sheets are plain, &ldquo;to check&rdquo; sheets are highlighted yellow and unreadable ones are listed on the second sheet. <a href="/s/__SLUG__">Open the results</a> to review.</p></div></div>
+<div class=ctl><button id=start>Start scanning</button><button id=stop class=stop style="display:none">Stop scanning</button><button id=now class=alt style="display:none">Capture now</button></div>
 <script>
 const SLUG="__SLUG__", TEST=__TEST__, base="/s/"+SLUG+"/live";
 const $=id=>document.getElementById(id);
-if(TEST){$("ttl").textContent="Camera test (nothing is saved)";}
+if(TEST){$("ttl").textContent="Camera test (nothing is saved)";$("back").href="/";$("back").textContent="Home";}
+else $("dbg").style.display="none";
 const v=$("v"), cam=$("cam"), msg=$("msg");
 const INTERVAL=120, NEED_OK=2, MOTION_MAX=9, SIDE=1800;
 let stream=null, scanning=false, mode="ready", okCount=0, busy=false, prev=null, moved=false, calm=0, n=0, wake=null;
@@ -134,7 +142,7 @@ async function startScan(){
     stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:3840},height:{ideal:2160}},audio:false});
   }catch(e){say("Camera blocked ("+e.name+"). Allow camera access for this page and try again.","warn");return;}
   v.srcObject=stream; await v.play(); cam.style.display="block";
-  if(v.videoWidth) cam.style.aspectRatio=v.videoWidth+"/"+v.videoHeight; draw(null);
+  if(v.videoWidth) cam.style.setProperty("--ar",v.videoWidth/v.videoHeight); draw(null);
   try{wake=await navigator.wakeLock.request("screen");}catch(e){}
   scanning=true; mode="ready"; okCount=0; prev=null; busy=false;
   $("start").style.display="none"; $("stop").style.display=""; $("now").style.display=""; $("done").style.display="none";
@@ -149,6 +157,6 @@ function stopScan(){
 }
 $("next").onclick=()=>{if(mode==="next"){mode="ready";okCount=0;prev=null;hideNext();say("Align the next sheet inside the frame","warn");}};
 $("start").onclick=startScan; $("stop").onclick=stopScan;
-if(TEST){document.head.insertAdjacentHTML("beforeend","<style>#now,#done,.card{display:none!important}#dbg{font-size:15px;color:var(--tx)}</style>");}
+if(TEST){document.head.insertAdjacentHTML("beforeend","<style>#now,#done,.card{display:none!important}#dbg{font-size:13px;color:var(--tx)}</style>");}
 $("now").onclick=()=>{ if(scanning&&!busy) capture(); };
 </script></html>

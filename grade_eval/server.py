@@ -123,66 +123,28 @@ def list_sets():
     return out
 
 
-CSS = """
-:root{--bg:#f4f6fa;--card:#fff;--tx:#18202b;--mut:#64708a;--ok:#0f8a3f;--bad:#c8420a;--chk:#a86400;--ln:#e1e6ee;--ac:#2f5bea;--acs:#e8eefd;--okb:#e6f6ec;--badb:#fdeee6;--chkb:#fdf3df;--sh:0 1px 2px #1b24351a,0 4px 14px #1b24350d}
-@media(prefers-color-scheme:dark){:root{--bg:#0e1116;--card:#171c24;--tx:#e8ebf0;--mut:#98a3b8;--ok:#4ade80;--bad:#fb923c;--chk:#facc15;--ln:#283040;--ac:#7aa2ff;--acs:#1c2742;--okb:#12301f;--badb:#35200f;--chkb:#332a0c;--sh:none}}
-*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
-body{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--tx);margin:0;line-height:1.45}
-.top{background:var(--card);border-bottom:1px solid var(--ln);position:sticky;top:0;z-index:5}
-.top div{max-width:1180px;margin:auto;padding:12px 20px;display:flex;align-items:center;gap:8px;font-size:14px;flex-wrap:wrap}
-.top .logo{font-weight:700;font-size:16px;color:var(--tx);text-decoration:none;margin-right:6px}
-.top .logo b{color:var(--ac)}.top .sep{color:var(--mut)}
-main{max-width:1180px;margin:auto;padding:8px 20px 48px}
-h1{font-size:26px;margin:18px 0 4px;letter-spacing:-.01em}h2{font-size:16px;margin:0 0 10px}a{color:var(--ac)}
-.sub{color:var(--mut);margin:0 0 14px;font-size:14px}
-.card{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:18px;margin:14px 0;box-shadow:var(--sh)}
-.ok{color:var(--ok)}.bad{color:var(--bad)}.chk{color:var(--chk)}.mut{color:var(--mut);font-size:13px}
-button,.btn{background:var(--ac);color:#fff;border:0;border-radius:10px;padding:10px 18px;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;transition:filter .15s,transform .05s}
-button:hover,.btn:hover{filter:brightness(1.08)}button:active,.btn:active{transform:translateY(1px)}
-.btn.alt{background:transparent;color:var(--ac);border:1px solid var(--ac)}
-.btn.warn{background:var(--chk);color:#fff}
-input[type=file]{font-size:14px;max-width:100%;padding:10px;border:1.5px dashed var(--ln);border-radius:10px;background:var(--bg);width:100%}
-input[type=file]:hover{border-color:var(--ac)}
-input[type=file]::file-selector-button{background:var(--acs);color:var(--ac);border:0;border-radius:8px;padding:7px 12px;margin-right:10px;font-weight:600;cursor:pointer}
-input[type=text],input[type=number]{font-size:15px;padding:9px 11px;border:1px solid var(--ln);border-radius:9px;background:var(--bg);color:var(--tx);max-width:100%}
-input:focus{outline:2px solid var(--ac);outline-offset:1px}
-.formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:4px 22px}.formgrid label.f{font-size:13px;font-weight:600;color:var(--mut);display:block;margin-top:10px}
-.formgrid input[type=text],.formgrid input[type=number]{width:100%;margin-top:4px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:10px}.grid label{font-size:12px;font-weight:600;color:var(--mut)}.grid input{width:100%}
-img.prev{width:100%;border-radius:10px;border:1px solid var(--ln)}
-.badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap}
-.badge.ok{background:var(--okb)}.badge.bad{background:var(--badb)}.badge.chk{background:var(--chkb)}
-.tw{overflow:auto;max-height:70vh;border:1px solid var(--ln);border-radius:10px}
-table{border-collapse:separate;border-spacing:0;width:100%;font-size:14px}
-td,th{padding:9px 11px;border-bottom:1px solid var(--ln);text-align:left;white-space:nowrap}
-th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em;background:var(--card);position:sticky;top:0;z-index:1}
-tbody tr:hover td,table tr:hover td{background:var(--acs)}tr:last-child td{border-bottom:0}
-td.n{text-align:right;font-variant-numeric:tabular-nums}td.n.bad{background:var(--badb);font-weight:700}
-.flash{background:var(--okb);border:1px solid var(--ok);border-radius:10px;padding:10px 14px;margin:12px 0;color:var(--tx)}
-#busy{display:none;position:fixed;inset:0;background:#0009;color:#fff;align-items:center;justify-content:center;font-size:18px;z-index:9;backdrop-filter:blur(3px)}
-#busy div:before{content:"";display:block;width:34px;height:34px;margin:0 auto 14px;border:4px solid #fff4;border-top-color:#fff;border-radius:50%;animation:sp .9s linear infinite}
-@keyframes sp{to{transform:rotate(360deg)}}
-.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-.bar{height:10px;background:var(--ln);border-radius:6px;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:var(--ok);border-radius:6px}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:0 0 14px}
-.tile{border:1px solid var(--ln);border-radius:12px;padding:12px 14px;background:var(--bg)}
-.tile b{display:block;font-size:26px;line-height:1.1;letter-spacing:-.02em}.tile span{font-size:12px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
-.tile.ok{background:var(--okb);border-color:transparent}.tile.chk{background:var(--chkb);border-color:transparent}.tile.bad{background:var(--badb);border-color:transparent}
-.chips{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px}.chips a{padding:6px 14px;border-radius:99px;border:1px solid var(--ln);text-decoration:none;font-size:13px;font-weight:600;color:var(--mut);background:var(--card)}
-.chips a.on{background:var(--ac);border-color:var(--ac);color:#fff}
-.hero{display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between}
-.empty{text-align:center;padding:34px 10px;color:var(--mut)}
-code{background:var(--bg);padding:1px 6px;border-radius:5px;font-size:12px}
-ol{padding-left:20px}li{margin:4px 0}
-@media(max-width:640px){main{padding:4px 12px 40px}h1{font-size:22px}.card{padding:14px}.top div{padding:10px 12px}}
-"""
+UI_CSS = ROOT / "grade_eval" / "assets" / "ui.css"
+FONTS = ("<link rel=preconnect href='https://fonts.googleapis.com'><link rel=preconnect href='https://fonts.gstatic.com' crossorigin>"
+         "<link href='https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap' rel=stylesheet>")
+LOGO = "<i><svg viewBox='0 0 24 24' fill=none stroke=#fff stroke-width=2.4 stroke-linecap=round stroke-linejoin=round><path d='M5 12.5l4.5 4.5L19 7'/></svg></i><span>Grade<b>Eval</b></span>"
+ICON_HOME = "<svg viewBox='0 0 24 24'><rect x=3 y=3 width=7.5 height=7.5 rx=2 /><rect x=13.5 y=3 width=7.5 height=7.5 rx=2 /><rect x=3 y=13.5 width=7.5 height=7.5 rx=2 /><rect x=13.5 y=13.5 width=7.5 height=7.5 rx=2 /></svg>"
+ICON_PLUS = "<svg viewBox='0 0 24 24'><circle cx=12 cy=12 r=9 /><path d='M12 8v8M8 12h8'/></svg>"
+
+
+@app.get("/ui.css")
+def ui_css():
+    return FileResponse(UI_CSS, media_type="text/css")
 
 
 def page(body: str, crumbs: str = "") -> str:
+    """crumbs: html shown above the page title (a link back to the set, etc.)."""
     return (f"<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
-            f"<title>Grade eval</title><style>{CSS}</style>"
-            f"<div id=busy><div>Reading sheet(s)… a few seconds each, please wait</div></div>"
-            f"<div class=top><div><a class=logo href=/>Grade<b>Eval</b></a><a href=/>All sets</a>{crumbs}</div></div><main>{body}</main>"
+            f"<title>GradeEval</title>{FONTS}<style>{UI_CSS.read_text(encoding='utf-8')}</style>"
+            f"<div id=busy><div>Reading sheets…<br><span style='font-weight:400;color:var(--mut)'>a few seconds each, please wait</span></div></div>"
+            f"<div class=shell><div class=topm><a class=logo href=/>{LOGO}</a></div><aside class=side><a class=logo href=/>{LOGO}</a>"
+            f"<a class='nav on' href=/>{ICON_HOME}Dashboard</a><a class=nav href='/?new=1'>{ICON_PLUS}New set</a></aside>"
+            f"<div class=content>"
+            f"{'<div class=crumbs>' + crumbs + '</div>' if crumbs else ''}{body}</div></div>"
             f"<script>document.querySelectorAll('form[data-busy]').forEach(f=>f.addEventListener('submit',()=>"
             f"document.getElementById('busy').style.display='flex'))</script>")
 
@@ -192,26 +154,39 @@ def fmt(v):
 
 
 # ------------------------------------------------------------------ home: list of sets + create
+def greeting() -> str:
+    h = time.localtime().tm_hour
+    return "Good morning" if h < 12 else "Good afternoon" if h < 17 else "Good evening"
+
+
 @app.get("/", response_class=HTMLResponse)
-def home():
-    items = "".join(
-        f"<tr><td><a href='/s/{s}'><b>{html.escape(s)}</b></a></td><td class=ok>{a} confirmed</td>"
-        f"<td class=chk>{b} to check / fix</td><td><a class='btn alt' href='/s/{s}'>Open</a></td></tr>"
-        for s, a, b in list_sets()) or "<tr><td class=empty>No sets yet. Create one below.</td></tr>"
-    return page(f"""<h1>Grade evaluation</h1>
-<p class=sub>Turn photos of graded answer sheets into an Excel of register numbers, names and marks.</p>
-<div class=card><h2>Your sets</h2><div class=tw><table>{items}</table></div></div>
-<div class=card><h2>Start a new set of papers</h2>
-<form action=/sets method=post enctype=multipart/form-data>
-<div class=formgrid>
-<div><label class=f>Name of this set</label><input type=text name=name placeholder="e.g. BCSE209L CAT-1 slot B2" required></div>
-<div><label class=f>Class list (Excel or CSV with register number and name columns)</label><input type=file name=roster accept=".xlsx,.csv"></div>
-<div><label class=f>Number of questions in the paper</label><input type=number name=n_questions value=10 min=1 max=40></div>
-<div><label class=f>Maximum marks for any one question (safety check)</label><input type=number name=max_mark value=100 min=1></div></div>
-<p><label><input type=checkbox name=test_mode value=1 checked> <b>Test mode</b>: accept exact class-list matches and confident marks without
-extra confirmation, and score every sheet against <code>data/labels_all.csv</code> (photos must keep their <code>sheet_NNN</code> names)</label></p>
-<button>Create set</button></form>
-<p class=mut>The class list lets the app match each sheet to a student and fill the Excel in your order.</p></div>""")
+def home(new: int = 0):
+    sets = list_sets()
+    total = sum(a + b for _, a, b in sets)
+    attention = sum(b for _, _, b in sets)
+    cards = "".join(
+        f"<div class=set><div><h3>{html.escape(s)}</h3></div>"
+        f"<div><div class=meta><span>{a} of {a + b} confirmed</span>{f'<span class=tag>{b} to review</span>' if b else ''}</div>"
+        f"<div class=bar><i style='width:{100 * a // (a + b) if a + b else 0}%'></i></div></div>"
+        f"<div class=row><a class='btn dark sm' href='/s/{s}/live-link'>Scan sheets</a><a class='btn alt sm' href='/s/{s}'>Open results</a></div></div>"
+        for s, a, b in sets)
+    listing = (f"<div class=sets>{cards}</div>" if cards else
+               "<div class='card empty'><h2>No sets yet</h2><p>A set is one pile of answer sheets, for example one exam.</p>"
+               "<button onclick=\"document.getElementById('new').showModal()\">Create your first set</button></div>")
+    return page(f"""<div class=head><div><h1>{greeting()}</h1><p class=sub>Scan graded answer sheets and export the marks to Excel</p></div>
+<button onclick="document.getElementById('new').showModal()"><span class=plus>+</span> New set</button></div>
+<div class=tiles><div class=tile><b>{len(sets)}</b><span>Sets</span></div><div class=tile><b>{total}</b><span>Sheets scanned</span></div>
+<div class='tile chk'><b>{attention}</b><span>Need your attention</span></div></div>
+<div class=head style='margin:26px 0 12px'><h2>Your sets</h2></div>{listing}
+<dialog id=new><form action=/sets method=post enctype=multipart/form-data>
+<div class=head><h2>New set</h2><button type=button class='btn alt sm' onclick="this.closest('dialog').close()">Close</button></div>
+<label class=f>Name</label><input type=text name=name placeholder="e.g. BCSE209L CAT-1 slot B2" required>
+<label class=f>Class list (Excel or CSV with register number and name)</label><input type=file name=roster accept=".xlsx,.csv">
+<label class=f>Questions in the paper</label><input type=number name=n_questions value=10 min=1 max=40>
+<input type=hidden name=max_mark value=100><input type=hidden name=test_mode value=1>
+<p class=mut>The class list lets the app match each sheet to a student and fill the Excel in your order.</p>
+<button style='width:100%;margin-top:6px'>Create set</button></form></dialog>
+<script>if(new URLSearchParams(location.search).get('new'))document.getElementById('new').showModal()</script>""")
 
 
 def store_roster(slug: str, upload: UploadFile | None) -> str:
@@ -298,8 +273,9 @@ def set_page(slug: str, added: int = 0, dup: int = 0, err: int = 0, filter: str 
     progress = ""
     if roster:
         pct = 100 * len(done) // len(roster)
-        progress = (f"<p><b>{len(done)} of {len(roster)}</b> students on the class list are confirmed"
-                    f"<div class=bar><i style='width:{pct}%'></i></div></p>")
+        progress = (f"<div style='margin-top:14px'><div style='display:flex;justify-content:space-between;font-size:12px;color:var(--mut);margin-bottom:5px'>"
+                    f"<span>{len(done)} of {len(roster)} students on the class list confirmed</span><span>{pct}%</span></div>"
+                    f"<div class=bar><i style='width:{pct}%'></i></div></div>")
     shown = [r for r in rows if not filter or r["tier"] == filter]
     head = "".join(f"<th>Q{i}</th>" for i in range(1, n + 1))
     body = ""
@@ -324,7 +300,7 @@ def set_page(slug: str, added: int = 0, dup: int = 0, err: int = 0, filter: str 
                  f"<td class=mut title='{html.escape(why, quote=True)}'>{html.escape(why[:90])}</td>"
                  f"<td><a href='/s/{slug}/sheet/{r['id']}'>{'view' if r['tier'] == 'confirmed' else 'open'}</a></td></tr>")
     table = (f"<div class=tw><table><tr><th>Status</th><th>Reg no</th><th>Name</th>{head}<th>Total</th>"
-             f"{'<th>vs truth</th>' if has_truth else ''}<th>Note</th><th></th></tr>{body}</table></div>") if shown else "<div class=empty>No sheets yet.<br>Upload photos above or use live scanning.</div>"
+             f"{'<th>vs truth</th>' if has_truth else ''}<th>Note</th><th></th></tr>{body}</table></div>") if shown else "<div class=empty><h2>No sheets yet</h2><p>Scan sheets with your phone or upload photos.</p></div>"
     scored = [(r, scores[r["id"]]) for r in rows if scores[r["id"]]]
     report = ""
     if scored:
@@ -335,40 +311,34 @@ def set_page(slug: str, added: int = 0, dup: int = 0, err: int = 0, filter: str 
         full = sum(sc["ok"] for _, sc in scored)
         auto = [(r, sc) for r, sc in scored if r["tier"] == "confirmed"]
         auto_bad = sum(not sc["ok"] for _, sc in auto)
-        report = (f"<div class=card><h2>Accuracy against hand labels ({k} sheets)</h2><div class=tiles>"
+        report = (f"<div class=card><details><summary>Accuracy against hand labels ({k} sheets)</summary><div class=tiles style='margin-top:14px'>"
                   f"<div class=tile><b>{100 * full // k}%</b><span>sheets fully correct ({full}/{k})</span></div>"
                   f"<div class=tile><b>{100 * reg_ok // k}%</b><span>register numbers ({reg_ok}/{k})</span></div>"
                   f"<div class=tile><b>{100 * (cells_all - cells_bad) // cells_all}%</b><span>question marks ({cells_all - cells_bad}/{cells_all})</span></div>"
                   f"<div class='tile {'bad' if auto_bad else 'ok'}'><b>{auto_bad} / {len(auto)}</b><span>auto-confirmed sheets wrong</span></div></div>"
-                  f"<p class=mut>Red cells differ from the hand label (hover for the true value). Sheets without a label are not counted.</p></div>")
-    mode = ("<span class=chk>test mode on</span> &middot; " if meta["test_mode"] else "")
-    roster_line = (f"{len(roster)} students" if roster else "none (register numbers will not be checked)")
-    bulk = (f"<form action='/s/{slug}/confirm_all' method=post onsubmit=\"return confirm('Confirm all {cnt['check']} sheets in \\'to check\\' "
-            f"as correct without opening them?')\"><button class='btn warn'>Confirm all {cnt['check']} “to check”</button></form>"
+                  f"<p class=mut>Red cells differ from the hand label (hover for the true value). Sheets without a label are not counted.</p></details></div>")
+    roster_line = f"class list of {len(roster)} students" if roster else "no class list yet"
+    bulk = (f"<form action='/s/{slug}/confirm_all' method=post onsubmit=\"return confirm('Confirm all {cnt['check']} sheets in to check "
+            f"as correct without opening them?')\"><button class='btn warn sm'>Confirm all {cnt['check']} to check</button></form>"
             ) if cnt["check"] else ""
     def chip(key, label):
         return f"<a class='{'on' if filter == key else ''}' href='/s/{slug}{'?filter=' + key if key else ''}'>{label}</a>"
-    return page(f"""<h1>{html.escape(slug)}</h1>
-<p class=sub>{mode}{n} questions &middot; class list: {roster_line}</p>{flash}
-{report}<div class=card><div class=tiles>
-<div class='tile ok'><b>{cnt['confirmed']}</b><span>confirmed</span></div>
-<div class='tile chk'><b>{cnt['check']}</b><span>to check</span></div>
-<div class='tile bad'><b>{cnt['fix']}</b><span>need fix</span></div>
-<div class=tile><b>{len(rows)}</b><span>sheets scanned</span></div></div>{progress}</div>
-<div class=card><div class=hero><div><h2>Add answer sheets</h2>
-<p class=mut style='margin:0'>Pick one or many photos. Each is aligned, read, matched to the class list and added below.</p></div>
-<a class=btn href='/s/{slug}/live-link'>&#128247; Open live scanning</a></div>
-<form action='/s/{slug}/upload' method=post enctype=multipart/form-data data-busy style='margin-top:12px'>
-<p><input type=file name=files accept="image/*" multiple required></p>
-<button>Upload and read</button></form></div>
-<div class=card><div class=hero><h2 style='margin:0'>Results</h2>
-<div class=row><a class=btn href='/s/{slug}/marks.xlsx'>Download Excel</a>{bulk}</div></div>
-<div class=chips>{chip('', 'All')}{chip('check', 'To check')}{chip('fix', 'Need fix')}{chip('confirmed', 'Confirmed')}</div>
-<p class=mut><b>Confirmed</b>: cross-checked. <b>To check</b>: read fine, open it, glance and save (or confirm all).
-<b>Need fix</b>: something unclear, correct it by hand. Hover a mark to see the raw read (e.g. 3+5+1).</p>{table}</div>
-<div class=card><h2>Class list</h2><form action='/s/{slug}/roster' method=post enctype=multipart/form-data>
-<p><input type=file name=roster accept=".xlsx,.csv" required></p><button class=alt>Upload / replace class list</button></form></div>""",
-                f"<span class=sep>&rsaquo;</span> {html.escape(slug)}")
+    return page(f"""<div class=head><div><h1>{html.escape(slug)}</h1><p class=sub>{n} questions &middot; {roster_line}</p></div>
+<div class=row><a class='btn dark' href='/s/{slug}/live-link'>Scan sheets</a><a class=btn href='/s/{slug}/marks.xlsx'>Download Excel</a></div></div>{flash}
+<div class=tiles><div class='tile ok'><b>{cnt['confirmed']}</b><span>Confirmed</span></div>
+<div class='tile chk'><b>{cnt['check']}</b><span>To check</span></div>
+<div class='tile bad'><b>{cnt['fix']}</b><span>Need fix</span></div>
+<div class=tile><b>{len(rows)}</b><span>Sheets scanned</span></div></div>{progress}
+{report}
+<div class=card><div class=head style='margin-bottom:10px'><h2>Results</h2><div class=row>{bulk}</div></div>
+<div class=chips style='margin-top:0'>{chip('', 'All')}{chip('check', 'To check')}{chip('fix', 'Need fix')}{chip('confirmed', 'Confirmed')}</div>{table}</div>
+<div class=card><h2>Upload photos</h2><p class=mut style='margin-bottom:12px'>Have photos already? Each one is aligned, read and added to the results.</p>
+<form action='/s/{slug}/upload' method=post enctype=multipart/form-data data-busy><p style='margin:0 0 12px'><input type=file name=files accept="image/*" multiple required></p>
+<button class='btn alt' style='box-shadow:none'>Upload and read</button></form></div>
+<div class=card><h2>Class list</h2><p class=mut style='margin-bottom:12px'>Upload or replace the Excel / CSV with register numbers and names.</p>
+<form action='/s/{slug}/roster' method=post enctype=multipart/form-data><p style='margin:0 0 12px'><input type=file name=roster accept=".xlsx,.csv" required></p>
+<button class='btn alt' style='box-shadow:none'>Upload class list</button></form></div>""",
+                f"<a href='/'>Dashboard</a> &rsaquo; {html.escape(slug)}")
 
 
 @app.post("/s/{slug}/upload")
@@ -412,16 +382,15 @@ def sheet_page(slug: str, sheet_id: int):
     im = f"<img class=prev src='/img/{r['hash']}'>" if (ALIGNED / (r["hash"] + ".png")).exists() else "<p class=mut>No preview.</p>"
     cls, label = TIER[r["tier"]]
     opts = "".join(f"<option value='{html.escape(x.reg_no)}'>{html.escape(x.name)}</option>" for x in roster)
-    return page(f"""<h1>{html.escape(r['reg'] or 'Unknown')} <span class='badge {cls}'>{label}</span></h1>
-<p class=mut>{html.escape(r['file'])}</p>
+    return page(f"""<div class=head><div><h1>{html.escape(r['reg'] or 'Unknown')} <span class='badge {cls}'>{label}</span></h1><p class=sub>{html.escape(r['file'])}</p></div></div>
 {('<div class=card><b>Notes</b><ul>' + why + '</ul></div>') if why else ''}
 <div class=card><h2>Check the values against the sheet, then save</h2>
 <form action='/s/{slug}/approve' method=post><input type=hidden name=sheet_id value={sheet_id}>
-<p>Reg no <input type=text name=reg_no list=regs value='{html.escape(r['reg'])}'><datalist id=regs>{opts}</datalist>
-Name <input type=text name=name value='{html.escape(r['name'])}'></p>
-<div class=grid>{fields}</div><p><button>Save as confirmed</button></p></form>
+<div class=formgrid><div><label class=f>Register number</label><input type=text name=reg_no list=regs value='{html.escape(r['reg'])}'><datalist id=regs>{opts}</datalist></div>
+<div><label class=f>Name</label><input type=text name=name value='{html.escape(r['name'])}'></div></div>
+<label class=f>Marks</label><div class=grid>{fields}</div><p><button>Save as confirmed</button></p></form>
 <p class=mut>Leave a box empty if that question has no marks. If the reg no is on the class list, the name is filled from it.</p></div>
-<div class=card><h2>Sheet (aligned)</h2>{im}</div>""", f"<span class=sep>&rsaquo;</span> <a href='/s/{slug}'>{html.escape(slug)}</a>")
+<div class=card><h2>Sheet (aligned)</h2>{im}</div>""", f"<a href='/'>Dashboard</a> &rsaquo; <a href='/s/{slug}'>{html.escape(slug)}</a>")
 
 
 @app.post("/s/{slug}/approve")
@@ -470,28 +439,36 @@ def live_link(slug: str):
     cert, key = live.cert_files()
     https = cert.exists() and key.exists()
     phone = f"https://{ip}:{live.HTTPS_PORT}/s/{slug}/live" if https else f"http://{ip}:{live.HTTP_PORT}/s/{slug}/live"
+    photo = phone[:-len("/live")] + "/photo"
     try:
         import segno
         qr = segno.make(phone, error="m").svg_inline(scale=6, border=2, dark="#000", light="#fff")
+        qr2 = segno.make(photo, error="m").svg_inline(scale=6, border=2, dark="#000", light="#fff")
     except Exception:
-        qr = ""
+        qr = qr2 = ""
     warn = "" if https else ("<p class=bad>No https certificate yet: phone cameras need https. Start the app with start.bat "
                              "(it creates one), then reload this page.</p>")
-    return page(f"""<h1>Live scanning</h1>
-<div class=card><h2>1. Connect the phone (same Wi-Fi as this PC)</h2>
-<p>Scan this code with the phone camera, or type the address:</p>
-<div style="background:#fff;padding:8px;display:inline-block;border-radius:8px;max-width:260px">{qr}</div>
-<p><a href='{html.escape(phone)}'><b>{html.escape(phone)}</b></a></p>{warn}
-<p class=mut>First time only: the phone shows a security warning because the certificate is made on this PC. Choose
-<b>Advanced &rarr; Continue / Proceed</b>, then allow the camera.</p></div>
-<div class=card><h2>2. Scan</h2><ol>
-<li>Press <b>Start scanning</b> and hold the phone flat above the first sheet.</li>
-<li>If the sheet is not lined up the phone says <b>Align the sheet</b>; when it turns green it captures by itself.</li>
-<li>After each capture it says <b>NEXT</b>: swap in the next sheet. Sheets are read here on the PC.</li>
-<li>Press <b>Stop scanning</b> when finished, then review the results on this page.</li></ol>
-<p><a class=btn href='/s/{slug}/live' target=_blank>Or scan with this PC's webcam</a>
-<a class='btn alt' href='/live-test' target=_blank>Test the camera only</a>
-<a class='btn alt' href='/s/{slug}'>Back to results</a></p></div>""", f"<span class=sep>&rsaquo;</span> <a href='/s/{slug}'>{html.escape(slug)}</a>")
+    return page(f"""<div class=head><div><h1>Scan sheets</h1><p class=sub>Pick how you want to get the sheets in. Both work from your phone.</p></div></div>
+<div class=link>
+<div class=card><h2>Option 1 &middot; Upload photos</h2>
+<p class=mut style='margin-top:6px'>Take a photo of each sheet with the phone camera, or choose photos from the gallery. Full resolution, as many as you like.</p>
+<div class=pconly><div class=qrbox>{qr2}</div><a class=addr href='{html.escape(photo)}'>{html.escape(photo)}</a></div>
+<div class=onphone><a class=btn style='width:100%;padding:14px;margin-top:12px' href='{html.escape(photo)}'>Open photo upload</a></div>
+<ol class=steps style='margin-top:16px'>
+<li><span>Open the page on your phone (scan the code).</span></li>
+<li><span>Press <b>Take photo</b> for each sheet, or <b>Choose from gallery</b> to pick several at once.</span></li>
+<li><span>Each sheet is read in the background and appears in the list.</span></li></ol></div>
+<div class=card><h2>Option 2 &middot; Live scanning</h2>
+<p class=mut style='margin-top:6px'>Hold the phone over each sheet. It checks the framing and captures by itself, then asks for the next sheet.</p>
+<div class=pconly><div class=qrbox>{qr}</div><a class=addr href='{html.escape(phone)}'>{html.escape(phone)}</a></div>
+<div class=onphone><a class=btn style='width:100%;padding:14px;margin-top:12px' href='{html.escape(phone)}'>Open scanner</a></div>{warn}
+<ol class=steps style='margin-top:16px'>
+<li><span>Open the scanner on your phone and press <b>Start scanning</b>.</span></li>
+<li><span>When the outline turns green it captures by itself. A green <b>NEXT</b> screen appears: swap in the next sheet.</span></li>
+<li><span>Press <b>Stop scanning</b> when finished.</span></li></ol></div></div>
+<p class=mut style='margin-top:14px'>Same Wi-Fi as this PC. First time only: the phone warns about the connection because the certificate is made on this PC. Tap <b>Advanced</b>, then <b>Proceed</b>, then allow the camera.</p>
+<div class=row style='margin-top:10px'><a class='btn alt sm' href='/s/{slug}'>Back to results</a><a class='btn alt sm' href='/live-test' target=_blank>Test the camera</a></div>""",
+                f"<a href='/'>Dashboard</a> &rsaquo; <a href='/s/{slug}'>{html.escape(slug)}</a>")
 
 
 @app.get("/s/{slug}/live", response_class=HTMLResponse)
@@ -499,6 +476,15 @@ def live_page(slug: str):
     if not (SETS / slug / "grades.db").exists():
         return RedirectResponse("/")
     return HTMLResponse(live.page_html(slug))
+
+
+@app.get("/s/{slug}/photo", response_class=HTMLResponse)
+def photo_page(slug: str):
+    """Photo mode: the phone's own camera app takes each sheet (full resolution), no live framing check."""
+    if not (SETS / slug / "grades.db").exists():
+        return RedirectResponse("/")
+    import html as _h
+    return HTMLResponse((Path(__file__).parent / "assets" / "photo.html").read_text(encoding="utf-8").replace("__SLUG__", _h.escape(slug, quote=True)))
 
 
 @app.get("/live-test", response_class=HTMLResponse)

@@ -14,6 +14,7 @@ data/*
 !data/label_work/
 data/label_work/*
 !data/label_work/records.txt
+!data/label_work/hard_notation.txt
 samples/
 models/
 *.pt

@@ -19,7 +19,7 @@ import torch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))   # train_marks (MarksNet, CTC decode) and finetune_header (TrOCR helpers) live in scripts/
 
-from grade_eval import roster as roster_mod
+from grade_eval import marks_solver, roster as roster_mod
 from grade_eval.exam_config import ExamConfig, QuestionLimit
 from grade_eval.store import db
 from grade_eval.validate import REG_NO_RE, validate_sheet
@@ -63,6 +63,16 @@ class GradePipeline:
         self.marks_net = tms.make_net()
         self.marks_net.load_state_dict(torch.load(ROOT / "models" / "marks_sum.pt", map_location="cpu"))
         self.marks_net.eval()
+        self.hard_net = None        # specialist for rows with a|b entries or written sums; simple rows stay on marks_sum.pt
+        hard_path = ROOT / "models" / "hard_b_s0.pt"
+        if hard_path.exists():
+            import train_marks_hard as th
+            self.th = th
+            ck = torch.load(hard_path, map_location="cpu")
+            self.hard_net = tms.make_net()
+            self.hard_net.load_state_dict(ck["state"])
+            self.hard_net.eval()
+            self.hard_coord = ck["coord"]
         self.n_questions = n_questions
         self.name_model = None
         name_path = ROOT / "models" / "trocr_name_small"      # weak free-text reader: used only as a roster hint
@@ -86,6 +96,14 @@ class GradePipeline:
         strip = torch.tensor(header.name_strip(aligned)).unsqueeze(0).unsqueeze(0)
         return self.fh.decode(self.name_model, self.name_tok, strip.to(self.dev), "name")[0]
 
+    @staticmethod
+    def _value_conf(lg: np.ndarray, s: str, frame_conf: float) -> float:
+        v = 0.0 if s == "" else parse_sum(s)
+        if v is None:
+            return frame_conf
+        c = marks_solver.candidates(lg, keep=4)
+        return float(np.exp(c[v])) if v in c else frame_conf
+
     def read_marks(self, aligned: np.ndarray, n_questions: int | None = None):
         """-> (questions {q: {"a", "raw", "conf"}}, sub_total|None (single group only), confidences, reasons, crosschecked).
 
@@ -96,7 +114,7 @@ class GradePipeline:
         n = n_questions or self.n_questions
         mask = cells.ink_mask(aligned)
         groups = (n + 9) // 10
-        strips, keys = [], []
+        strips, keys, simple = [], [], []
         for g in range(groups):
             dx = layout.GROUP_X[g][0] - layout.GROUP_X[0][0]
             xr = (cells.SPILL_X[0] + dx, cells.SPILL_X[1] + dx)
@@ -105,9 +123,16 @@ class GradePipeline:
                 m = mask[y0:y1, x0:x1].astype(np.uint8) * 255
                 strips.append(255 - cv2.resize(m, (cells.W, cells.H), interpolation=cv2.INTER_AREA))
                 keys.append((g, i, (x0, y0, x1, y1)))
+                simple.append(i == 10 or cells.ink_fraction(mask, i, (cells.B_X[0] + 8 + dx, cells.SPILL_X[1] + dx)) < 0.004)
         X = torch.tensor(np.stack(strips).astype(np.float32) / 255).unsqueeze(1)
         with torch.no_grad():
-            reads = self.ctc_decode(self.marks_net(X))
+            logits = self.marks_net(X)
+            if self.hard_net is not None and not all(simple):
+                logits = torch.where(torch.tensor(simple).view(-1, 1, 1), logits, self.th.forward(self.hard_net, X, self.hard_coord))
+            reads = self.ctc_decode(logits)
+            # confidence = probability of the read VALUE (all spellings/alignments that give it), not the weakest single
+            # frame: a correct but loosely-written '3' scores ~0.6 on the frame rule yet ~0.9+ on the value
+            reads = [(sx, self._value_conf(lg.numpy(), sx, cf)) for lg, (sx, cf) in zip(logits, reads)]
         questions, confs, reasons, subs = {}, [], [], {}
         for (g, i, box), (s, conf) in zip(keys, reads):
             if i == 10:
