@@ -146,7 +146,10 @@ class GradePipeline:
         X = torch.tensor(np.stack(strips).astype(np.float32) / 255).unsqueeze(1)
         with torch.no_grad():
             logits = self.marks_net(X)
-            if self.hard_net is not None and not all(simple):
+            if self.hard_net is not None and os.environ.get("GRADE_ENS", "1") == "1":
+                hl = self.th.forward(self.hard_net, X, self.hard_coord)      # average the two readers on every row
+                logits = torch.log(0.5 * logits.softmax(-1) + 0.5 * hl.softmax(-1) + 1e-9)
+            elif self.hard_net is not None and not all(simple):
                 logits = torch.where(torch.tensor(simple).view(-1, 1, 1), logits, self.th.forward(self.hard_net, X, self.hard_coord))
             reads = self.ctc_decode(logits)
             # confidence = probability of the read VALUE (all spellings/alignments that give it), not the weakest single
