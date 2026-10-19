@@ -48,7 +48,9 @@ async function follow(job,k,left,right){
 }
 async function send(f){
   let info=" ("+Math.round(f.size/1000)+" KB)";
-  try{const b=await createImageBitmap(f);info=" ("+b.width+"×"+b.height+", "+Math.round(f.size/1000)+" KB)";b.close();}catch(x){}
+  try{const b=await createImageBitmap(f);info=" ("+b.width+"×"+b.height+", "+Math.round(f.size/1000)+" KB)";
+      if(Math.max(b.width,b.height)<1800||f.size<250000) info+=" ⚠ small or compressed copy: marks may be read less reliably. Use Take photo, not a WhatsApp/gallery copy";
+      b.close();}catch(x){}
   const r=await fetch(base+"/capture",{method:"POST",body:f,headers:{"Content-Type":f.type||"image/jpeg"}});
   if(!r.ok) throw new Error("server "+r.status);
   const j=await r.json();
