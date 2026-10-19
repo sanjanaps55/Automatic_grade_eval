@@ -249,6 +249,13 @@ def main():
     for kind in ("sub", "grand"):
         t0 = time.time()
         # inner validation: 20% of the training sheets, never used to fit during early-stopping selection
+        if mode == "final":                                    # settings fixed by the eval-mode run (inner validation), no selection on held-out data
+            best_ep, best, oof, held, LG = {"sub": 45, "grand": 25}[kind], (None, None), {}, {}, {}
+            net, _, _ = train_one(kind, items_for(kind, D, train_idx), bank, best_ep, None, seed=99)
+            models[kind] = net
+            torch.save({k: v.cpu() for k, v in net.state_dict().items()}, ROOT / "models" / f"total_{kind}.pt")
+            print(f"[{kind}] FINAL saved models/total_{kind}.pt trained on {len(items_for(kind, D, train_idx))} items, {best_ep} epochs [{time.time() - t0:.0f}s]", flush=True)
+            continue
         perm = rng.permutation(train_idx); nv = max(6, len(perm) // 5)
         inner_val, inner_tr = perm[:nv], perm[nv:]
         net, best, hist = train_one(kind, items_for(kind, D, inner_tr), bank, EPOCHS, items_for(kind, D, inner_val))
@@ -279,6 +286,8 @@ def main():
         suffix = suffix + tag_
         torch.save({k: v.cpu() for k, v in net.state_dict().items()}, ROOT / "models" / f"total_{kind}{suffix}.pt")
         print(f"[{kind}] saved models/total_{kind}{suffix}.pt  [{time.time() - t0:.0f}s]", flush=True)
+    if mode == "final":
+        return
     report["meta"] = {"sheet": [str(s) for s in D["sheet"]], "loc": [str(s) for s in D["loc"]], "split": [str(s) for s in D["split"]],
                       "total": [float(t) for t in D["total"]], "trust": [int(t) for t in D["trust"]]}
     (ROOT / "data" / "overnight" / f"total_report_{mode}.json").write_text(json.dumps(report), encoding="utf-8")

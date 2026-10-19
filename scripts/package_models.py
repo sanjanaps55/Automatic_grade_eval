@@ -9,7 +9,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FINAL = ["models/marks_sum.pt", "models/hard_b_s0.pt", "models/hard_b_s0.pt.json",   # marks reader: simple rows / hard rows (a|b, sums)
+FINAL = ["models/marks_sum.pt", "models/hard_b_s0.pt", "models/hard_b_s0.pt.json", "models/total_sub.pt", "models/total_grand.pt",   # marks reader: simple rows / hard rows (a|b, sums)
          "models/trocr_reg_small", "models/trocr_name_small"]                          # register number; name (roster hint). Exactly what the app loads
 EXTRA = []                                                                              # older models live in models/not_used_models (not packed)
 RESNET_REG = []

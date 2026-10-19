@@ -417,7 +417,19 @@ async def approve(slug: str, request: Request):
             except ValueError:
                 pass
     with _lock:
-        db.approve_sheet(conn_for(slug), sheet_id, reg, name, questions)
+        c = conn_for(slug)
+        row = c.execute("SELECT image_hash, extracted FROM sheets WHERE id = ?", (sheet_id,)).fetchone()
+        db.approve_sheet(c, sheet_id, reg, name, questions)
+    if row is not None:                       # log what the reviewer corrected: future training data (image + final marks)
+        try:
+            ex = json.loads(row["extracted"])
+            out = ROOT / "data" / "corrections"; out.mkdir(parents=True, exist_ok=True)
+            (out / f"{row['image_hash']}.json").write_text(json.dumps({
+                "set": slug, "reg_no": reg, "marks": {str(q): v["a"] for q, v in questions.items()},
+                "read": {q: v.get("raw", "") for q, v in ex.get("questions", {}).items()},
+                "guesses": ex.get("guesses", {}), "aligned_image": f"data/aligned_web/{row['image_hash']}.png"}), encoding="utf-8")
+        except Exception:
+            pass
     return RedirectResponse(f"/s/{slug}", status_code=303)
 
 

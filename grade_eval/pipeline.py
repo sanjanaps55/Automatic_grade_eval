@@ -20,7 +20,7 @@ import torch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))   # train_marks (MarksNet, CTC decode) and finetune_header (TrOCR helpers) live in scripts/
 
-from grade_eval import marks_solver, roster as roster_mod
+from grade_eval import marks_solver, roster as roster_mod, totals as totals_mod
 from grade_eval.exam_config import ExamConfig, QuestionLimit
 from grade_eval.store import db
 from grade_eval.validate import REG_NO_RE, validate_sheet
@@ -29,9 +29,8 @@ from grade_eval.vision.preprocess import load_image
 
 MARK_CONF = 0.90        # per-row confidence needed to accept a marks read
 MAX_Q_MARK = 30         # larger reads are almost certainly garbage
-TOT_CONF = 0.5          # a written total must be read with at least this probability (and no rival total close behind)
-TOT_RIVAL = 0.3         # ... and no different total may be read with more than this probability
-SOLVE_MARGIN = 2.5      # log-probability lead of the best row combination over the runner-up for the "adjusted to the total" suggestion
+TOT_LR = 11.0           # nats of evidence that the total strips read this number rather than nothing (false-evidence rate ~1% per wrong number)
+TOT_MARGIN = 3.0        # lead (nats) of the winning total hypothesis over the runner-up
 GUESS_MIN = 0.25        # unclear rows show their best guess to the reviewer when it has at least this probability
 SOLO_CONF = 0.97        # single-number rows without a sub-total cross-check must be at least this confident
 CONFIRM = "please confirm: "   # reasons with this prefix mean "read fine, just glance at it"; anything else needs a fix
@@ -80,11 +79,9 @@ class GradePipeline:
             self.hard_coord = ck["coord"]
         self.n_questions = n_questions
         self.total_reader = None    # reads the written total (Sub-Total cell / Grand Total box) to cross-check the marks
-        self.tot_conf = TOT_CONF
         suffix = os.environ.get("GRADE_TOTAL_SUFFIX", "")     # "_eval" = readers trained on the train split only (honest scoring)
         sp, gp = ROOT / "models" / f"total_sub{suffix}.pt", ROOT / "models" / f"total_grand{suffix}.pt"
         if sp.exists() and gp.exists() and os.environ.get("GRADE_NO_TOTAL") != "1":
-            from grade_eval import totals as totals_mod
             self.total_reader = totals_mod.TotalReader(sp, gp, self.dev)
         self.name_model = None
         name_path = ROOT / "models" / "trocr_name_small"      # weak free-text reader: used only as a roster hint
@@ -203,62 +200,63 @@ class GradePipeline:
 
 
     def _cross_check_total(self, mask, keys, reads, logits, questions, reasons, confs, n):
-        """Use the written total (Sub-Total cell / Grand Total box) to confirm or suggest the question marks.
+        """Confirm the question marks with the written total (Sub-Total cell / Grand Total box).
 
-        A: the best reading of every row adds up to the confidently read total -> rows accepted, sheet cross-checked.
-        B: otherwise, if changing the fewest rows to their runner-up readings makes them add up (clear winner) -> suggestion
-           only, marked "please confirm" with the adjusted rows named. Nothing is changed silently.
-        C: a confident total that no reading explains -> the sheet is held back with the mismatch stated.
+        For every sum the rows could reach (their best readings and runner-ups) we score how well the total strips match that
+        number against "nothing written" (CTC likelihood ratio, `totals.evidence`) and add the rows' own log-probability.
+        Only when the BEST reading of every row already adds up to the winning number, the evidence is strong (TOT_LR) and the
+        winner leads the next hypothesis clearly (TOT_MARGIN) is the sheet cross-checked: unclear-looking rows are then
+        accepted. Changing rows to fit a total was tried and was wrong on every held-out case, so it is not done.
         """
-        tr = self.total_reader.read_totals(mask)
-        pooled = sorted(tr["totals"].items(), key=lambda kv: -kv[1])
-        total, p_tot = (pooled[0] if pooled else (None, 0.0))
-        rival = max([p for v, p in pooled[1:] if total is not None and abs(v - total) > 1e-6] or [0.0])
-        if total is None or p_tot < self.tot_conf or rival > TOT_RIVAL:
-            return questions, reasons, confs, None, False, None            # no usable written total: behave as before
-        rows, order, ink_blank = {}, [], {}
-        for (g, i, box), (sx, cf), lg in zip(keys, reads, logits):
+        sl, gl = self.total_reader.logits(mask)
+        rows, ink_blank = {}, {}
+        for idx, ((g, i, box), (sx, cf)) in enumerate(zip(keys, reads)):
             if i == 10 or i + 1 > n:
                 continue
             x0, y0, x1, y1 = box
-            c = marks_solver.candidates(lg.numpy(), keep=6)
             ink_blank[i + 1] = float(mask[y0:y1, x0:x1].mean()) < BLANK_INK
-            rows[i + 1] = (c, sx, cf)
-        if any(not c for c, _, _ in rows.values()):
-            return questions, reasons, confs, total, False, None
+            rows[i + 1] = (self.last_cands[idx], sx, cf)
+        if not rows or any(not c for c, _, _ in rows.values()):
+            return questions, reasons, confs, None, False, None
+        dp = {0: (0.0, ())}
+        for q in sorted(rows):
+            nd = {}
+            for sm, (lp, asg) in dp.items():
+                for v, l in rows[q][0].items():
+                    k = sm + int(round(v * 10))
+                    if k not in nd or lp + l > nd[k][0]:
+                        nd[k] = (lp + l, asg + (v,))
+            dp = nd
+        sums = sorted(dp)
+        values = [k / 10 for k in sums]
+        E = totals_mod.evidence(sl, gl, values)
+        # the marks readers also read digits in the Sub-Total cell (never trained on totals): extra, independent-ish evidence
+        sx = torch.tensor(totals_mod.sub_strip(mask).astype(np.float32) / 255).view(1, 1, 64, 192)
+        with torch.no_grad():
+            extra = [self.marks_net(sx)[0].numpy()]
+            if self.hard_net is not None:
+                extra.append(self.th.forward(self.hard_net, sx, self.hard_coord)[0].numpy())
+        for lg in extra:
+            E = np.maximum(E, totals_mod.evidence(lg, np.zeros((0,) + lg.shape, np.float32), values))
+        H = np.array([dp[k][0] for k in sums]) + E
+        order = np.argsort(-H)
+        j = int(order[0])
+        margin = float(H[j] - H[order[1]]) if len(order) > 1 else 1e9
         best = {q: max(c.items(), key=lambda kv: kv[1])[0] for q, (c, _, _) in rows.items()}
-        if abs(sum(best.values()) - total) < 1e-6:                          # A
+        if E[j] >= TOT_LR and margin >= TOT_MARGIN and abs(sum(best.values()) - values[j]) < 1e-6:
             newq, newconf = {}, []
             for q, v in best.items():
                 c, sx, cf = rows[q]
-                if ink_blank[q] and v == 0.0:
-                    continue
-                if v == 0.0 and sx == "":
+                if (ink_blank[q] and v == 0.0) or (v == 0.0 and sx == ""):
                     continue
                 pv = float(np.exp(c[v]))
                 raw = sx if marks_solver.parse_sum(sx) == v else f"{v:g}"
                 newq[q] = {"a": v, "b": None, "raw": raw, "conf": round(pv, 3)}
                 newconf.append(pv)
             keep = [r for r in reasons if not (r.startswith("Q") and "unclear read" in r)]
-            return newq, keep, newconf, total, True, "agree"
-        # B: runner-up readings that make the rows add up
-        solved, margin, nsol = marks_solver.solve([c for c, _, _ in rows.values()], {total: 0.0})
-        if solved is not None and margin >= SOLVE_MARGIN:
-            qs = list(rows)
-            changed = [q for q, v in zip(qs, solved) if abs(v - best[q]) > 1e-6]
-            if 0 < len(changed) <= 2:
-                newq, newconf = {}, []
-                for q, v in zip(qs, solved):
-                    if ink_blank[q] and v == 0.0:
-                        continue
-                    newq[q] = {"a": v, "b": None, "raw": f"{v:g}", "conf": round(float(np.exp(rows[q][0].get(v, -9))), 3)}
-                    newconf.append(0.99)
-                keep = [r for r in reasons if not (r.startswith("Q") and "unclear read" in r)]
-                keep.append(CONFIRM + "marks adjusted to match the written total " + f"{total:g}: " +
-                            ", ".join(f"Q{q} {best[q]:g} -> {dict(zip(qs, solved))[q]:g}" for q in changed))
-                return newq, keep, newconf, total, False, "adjusted"
-        reasons = list(reasons) + [f"written total reads {total:g} but the marks do not add up to it"]       # C
-        return questions, reasons, confs, total, False, "mismatch"
+            self.last_guesses = {}
+            return newq, keep, newconf, values[j], True, "agree"
+        return questions, reasons, confs, None, False, None
 
     # --- main entry ------------------------------------------------------------------------------------------------
     def process(self, data: bytes, filename: str = "") -> dict:

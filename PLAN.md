@@ -27,6 +27,10 @@ Evaluators copy name, register no. and question-wise marks from graded VIT answe
 - **Safety design**: model confidence is NOT trusted (wrong reads at 0.95-1.0). A sheet is auto-written only when the question marks match the written sub-total (or clear single numbers >= 0.97) AND the register number matches the class list exactly. Everything else is "to check" (glance + save) or "needs fix". Only 4/132 sheets carry a matching written sub-total, so most sheets land in "to check" by design.
 - **Open**: more sum/a|b training rows (46 real), ticks/strikes read as digits, name reader (see below), 8 curled sheets fail to align, Paddle bake-off not run.
 
+## Status (2026-10-20, branch `overnight`): see OVERNIGHT_REPORT.md
+- Added: reader ensemble (marks_sum + hard_b averaged), written-total cross-check by likelihood ratio (`grade_eval/totals.py`, `models/total_sub.pt`, `total_grand.pt`; total locations labelled in `data/overnight/total_loc.csv`), unique-exact register rule, alignment upscaling for small/compressed photos, pre-filled row guesses, upload-page quality warning, corrections log (`data/corrections/`), end-to-end scorer `scripts/eval_e2e.py`.
+- Held-out (37 sheets): confirmed 5 -> 6 (orig), 3 -> 4 (q85), 0 -> 1 (q60); confirmed-wrong 0 (was 1 at q85). Most sheets still need fixing: sum rows without a readable total stay unconfirmed by design. Next best lever: more labelled totals / sum rows (use the corrections log) and a fresh 30-50 sheet test set.
+
 ## Session note (2026-10-11, later)
 - Removed 20 re-photos (same reg_no, near pixel-identical) from `data/samples/` -> `data/removed_duplicates/`; `labels_draft.csv` now 74 rows (backup `.bak`), samples 143. Kept the sheet already in labels.csv, else lowest number.
 - Reg no format: 2 digits + 3 capital letters + 4 digits. Draft rows 056, 059, 102, 164 had truncated reg nos (still `?`).
