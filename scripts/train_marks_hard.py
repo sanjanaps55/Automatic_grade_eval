@@ -209,6 +209,8 @@ def main():
     coord = "--coord" in sys.argv; patience = arg("--patience", 15, int); hard_rep = arg("--hard-rep", 3, int)
     n_syn_hard = arg("--syn-hard", 1500, int); n_syn_sum = arg("--syn-sum", 500, int)
     out_path = Path(arg("--out", ROOT / "models" / "marks_hard.pt"))
+    deg_path = arg("--deg", "")                                               # data/cells_deg.npz: phone-quality copies (build_cells_degraded.py)
+    p_deg = arg("--p-deg", 0.5, float)
     tms.rng = np.random.default_rng(seed); torch.manual_seed(seed); np.random.seed(seed)
 
     rows = tms.build_dataset()
@@ -221,6 +223,21 @@ def main():
     base = simple_filled + hard * hard_rep + [blanks[i] for i in keep]
     print(f"rows: train {len(tr)} (hard labelled {len(hard)} x{hard_rep}, simple filled {len(simple_filled)}, blanks kept {len(keep)}), val {len(va)}, test {len(te)}"
           f" | coord={coord} init={init} seed={seed}", flush=True)
+
+    deg_tr, va_d, te_d = {}, [], []
+    if deg_path:
+        dz = np.load(deg_path); dX = dz["X"].astype(np.float32) / 255
+        info = {(r[3], r[4]): r for r in rows}
+        for k in range(len(dX)):
+            r = info.get((str(dz["sheet"][k]), int(dz["row"][k]) + 1))
+            if r is None:
+                continue
+            sp_k = str(dz["split"][k])
+            if sp_k == "train":
+                deg_tr.setdefault((r[3], r[4]), []).append(dX[k])             # augmentation: TRAIN sheets only
+            else:
+                (va_d if sp_k == "val" else te_d).append((dX[k],) + tuple(r[1:]))   # val/test copies: scoring only, never trained on
+        print(f"degraded copies: train rows with copies {len(deg_tr)}, val {len(va_d)}, test {len(te_d)}", flush=True)
 
     bank = build_bank(tr)                                                     # glyphs from TRAIN single-digit rows only
     print("glyphs:", {k: len(v) for k, v in bank.items()}, flush=True)
@@ -236,12 +253,21 @@ def main():
     EX = torch.tensor(np.stack([r[0] for r in te])).unsqueeze(1)
     real_tr = [r for r in tr if r[1]][:400]                                  # fixed slice of real train rows for the train-vs-val gap
     RX = torch.tensor(np.stack([r[0] for r in real_tr])).unsqueeze(1)
+    VXd = torch.tensor(np.stack([r[0] for r in va_d])).unsqueeze(1) if va_d else None
+    EXd = torch.tensor(np.stack([r[0] for r in te_d])).unsqueeze(1) if te_d else None
+
+    def epoch_real():                                                       # each real train row: original, or (p_deg) a random phone-quality copy
+        xs = []
+        for r in base:
+            c = deg_tr.get((r[3], r[4]))
+            xs.append(c[int(tms.rng.integers(len(c)))] if c and tms.rng.random() < p_deg else r[0])
+        return torch.tensor(np.stack(xs)).unsqueeze(1)
 
     best, best_ep, best_state, bad = -1.0, 0, None, 0
     for ep in range(epochs):
         net.train(); t0 = time.time(); tot = 0.0
         SX, SY = synth_hard(bank, n_syn_hard); S2X, S2Y = tms.synth(bank, n_syn_sum)
-        px = torch.cat([TX, SX, S2X]); py = TY + SY + S2Y
+        px = torch.cat([epoch_real() if deg_tr else TX, SX, S2X]); py = TY + SY + S2Y
         perm = tms.rng.permutation(len(py))
         for i in range(0, len(perm), 32):
             idx = perm[i:i + 32]
@@ -255,9 +281,16 @@ def main():
         hv = [i for i, r in enumerate(va) if not r[5]]
         ok_hard = np.mean([is_ok(pv[i][0], VY[i]) for i in hv]) if hv else 0.0
         score = ok_all + ok_hard                                            # model selection on VAL only
+        ok_all_d = ok_hard_d = None
+        if VXd is not None:                                                 # ...scored on original AND phone-quality copies of the val sheets
+            pvd = predict(net, VXd, coord)
+            ok_all_d = np.mean([is_ok(p[0], r[1]) for p, r in zip(pvd, va_d)])
+            hvd = [i for i, r in enumerate(va_d) if not r[5]]
+            ok_hard_d = np.mean([is_ok(pvd[i][0], va_d[i][1]) for i in hvd]) if hvd else 0.0
+            score = (score + ok_all_d + ok_hard_d) / 2
         if ep % 5 == 4 or ep == epochs - 1 or score > best:
             ptr = predict(net, RX, coord); gap = np.mean([is_ok(p[0], r[1]) for p, r in zip(ptr, real_tr)])
-            print(f"ep {ep + 1:3d} loss {tot / (len(perm) / 32):.3f} | val all {ok_all:.3f} hard {ok_hard:.3f} | real-train {gap:.3f} (gap {gap - ok_all:+.3f}) | {time.time() - t0:.0f}s/ep" + ("  *best*" if score > best else ""), flush=True)
+            print(f"ep {ep + 1:3d} loss {tot / (len(perm) / 32):.3f} | val all {ok_all:.3f} hard {ok_hard:.3f}" + (f" | val-phone all {ok_all_d:.3f} hard {ok_hard_d:.3f}" if ok_all_d is not None else "") + f" | real-train {gap:.3f} (gap {gap - ok_all:+.3f}) | {time.time() - t0:.0f}s/ep" + ("  *best*" if score > best else ""), flush=True)
         if score > best:
             best, best_ep, bad = score, ep + 1, 0
             best_state = {k: v.detach().cpu().clone() for k, v in net.state_dict().items()}
@@ -271,7 +304,11 @@ def main():
     torch.save({"state": best_state, "coord": coord}, out_path)
     print(f"\nbest checkpoint: epoch {best_ep}; saved {out_path}")
     print("VALIDATION (used for selection)"); res_v = report("val", va, predict(net, VX, coord))
+    if VXd is not None:
+        print("VALIDATION, phone-quality copies"); report("val-ph", va_d, predict(net, VXd, coord))
     print("TEST (scored once)"); pt = predict(net, EX, coord); res_t = report("test", te, pt)
+    if EXd is not None:
+        print("TEST, phone-quality copies"); report("test-ph", te_d, predict(net, EXd, coord))
     for th in (0.9, 0.97):
         kept = [(p, r) for p, r in zip(pt, te) if p[1] >= th or p[0] == ""]
         print(f"  test conf>={th}: auto {len(kept)}/{len(te)}, wrong among auto {sum(not is_ok(p[0], r[1]) for p, r in kept)}")

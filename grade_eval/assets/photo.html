@@ -28,7 +28,7 @@ a.dl{display:block;text-align:center;font-weight:600;padding:13px;border-radius:
 <div id=done style="display:none;margin-top:12px"><a class=dl href="/s/__SLUG__/marks.xlsx" download>Download Excel</a>
 <p class=mut style="margin-top:10px"><a href="/s/__SLUG__">Open the results</a> to review.</p></div></div>
 <script>
-const base="/s/__SLUG__/live", $=id=>document.getElementById(id);
+const base="/s/__SLUG__/photo", $=id=>document.getElementById(id);
 let n=0;
 function say(t,c){$("msg").textContent=t;$("msg").className=c||"";}
 async function follow(job,k,left,right){

@@ -6,6 +6,6 @@ if exist .venv\Scripts\python.exe set PY=.venv\Scripts\python.exe
 %PY% -c "import cv2, torch" >nul 2>&1
 if errorlevel 1 if exist C:\Miniconda3\python.exe set PY=C:\Miniconda3\python.exe
 echo.
-echo  Close this window to stop. Live scanning on the phone uses the https address printed below.
+echo  Close this window to stop. Open the phone address printed below to upload photos from the phone.
 %PY% scripts\serve.py
 pause

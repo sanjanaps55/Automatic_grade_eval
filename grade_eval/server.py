@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Resp
 
 from starlette.concurrency import run_in_threadpool
 
-from grade_eval import live
+from grade_eval import phone
 from grade_eval.exam_config import ExamConfig, QuestionLimit
 from grade_eval.pipeline import CONFIRM, GradePipeline
 from grade_eval.roster import load_roster
@@ -168,7 +168,7 @@ def home(new: int = 0):
         f"<div class=set><div><h3>{html.escape(s)}</h3></div>"
         f"<div><div class=meta><span>{a} of {a + b} confirmed</span>{f'<span class=tag>{b} to review</span>' if b else ''}</div>"
         f"<div class=bar><i style='width:{100 * a // (a + b) if a + b else 0}%'></i></div></div>"
-        f"<div class=row><a class='btn dark sm' href='/s/{s}/live-link'>Scan sheets</a><a class='btn alt sm' href='/s/{s}'>Open results</a></div></div>"
+        f"<div class=row><a class='btn dark sm' href='/s/{s}/photo-link'>Upload photos</a><a class='btn alt sm' href='/s/{s}'>Open results</a></div></div>"
         for s, a, b in sets)
     listing = (f"<div class=sets>{cards}</div>" if cards else
                "<div class='card empty'><h2>No sets yet</h2><p>A set is one pile of answer sheets, for example one exam.</p>"
@@ -324,7 +324,7 @@ def set_page(slug: str, added: int = 0, dup: int = 0, err: int = 0, filter: str 
     def chip(key, label):
         return f"<a class='{'on' if filter == key else ''}' href='/s/{slug}{'?filter=' + key if key else ''}'>{label}</a>"
     return page(f"""<div class=head><div><h1>{html.escape(slug)}</h1><p class=sub>{n} questions &middot; {roster_line}</p></div>
-<div class=row><a class='btn dark' href='/s/{slug}/live-link'>Scan sheets</a><a class=btn href='/s/{slug}/marks.xlsx'>Download Excel</a></div></div>{flash}
+<div class=row><a class='btn dark' href='/s/{slug}/photo-link'>Upload photos</a><a class=btn href='/s/{slug}/marks.xlsx'>Download Excel</a></div></div>{flash}
 <div class=tiles><div class='tile ok'><b>{cnt['confirmed']}</b><span>Confirmed</span></div>
 <div class='tile chk'><b>{cnt['check']}</b><span>To check</span></div>
 <div class='tile bad'><b>{cnt['fix']}</b><span>Need fix</span></div>
@@ -430,101 +430,47 @@ def marks_xlsx(slug: str):
     return FileResponse(path, filename=f"{slug}.xlsx")
 
 
-# ------------------------------------------------------------------ live scanning (phone camera -> this PC)
-@app.get("/s/{slug}/live-link", response_class=HTMLResponse)
-def live_link(slug: str):
+# ------------------------------------------------------------------ phone photo upload (phone -> this PC)
+@app.get("/s/{slug}/photo-link", response_class=HTMLResponse)
+def photo_link(slug: str):
     if not (SETS / slug / "grades.db").exists():
         return RedirectResponse("/")
-    ip = live.lan_ip()
-    cert, key = live.cert_files()
-    https = cert.exists() and key.exists()
-    phone = f"https://{ip}:{live.HTTPS_PORT}/s/{slug}/live" if https else f"http://{ip}:{live.HTTP_PORT}/s/{slug}/live"
-    photo = phone[:-len("/live")] + "/photo"
+    photo = f"http://{phone.lan_ip()}:{phone.HTTP_PORT}/s/{slug}/photo"
     try:
         import segno
-        qr = segno.make(phone, error="m").svg_inline(scale=6, border=2, dark="#000", light="#fff")
-        qr2 = segno.make(photo, error="m").svg_inline(scale=6, border=2, dark="#000", light="#fff")
+        qr = segno.make(photo, error="m").svg_inline(scale=6, border=2, dark="#000", light="#fff")
     except Exception:
-        qr = qr2 = ""
-    warn = "" if https else ("<p class=bad>No https certificate yet: phone cameras need https. Start the app with start.bat "
-                             "(it creates one), then reload this page.</p>")
-    return page(f"""<div class=head><div><h1>Scan sheets</h1><p class=sub>Pick how you want to get the sheets in. Both work from your phone.</p></div></div>
+        qr = ""
+    return page(f"""<div class=head><div><h1>Upload photos</h1><p class=sub>Send photos of the sheets from your phone. They are read in the background.</p></div></div>
 <div class=link>
-<div class=card><h2>Option 1 &middot; Upload photos</h2>
-<p class=mut style='margin-top:6px'>Take a photo of each sheet with the phone camera, or choose photos from the gallery. Full resolution, as many as you like.</p>
-<div class=pconly><div class=qrbox>{qr2}</div><a class=addr href='{html.escape(photo)}'>{html.escape(photo)}</a></div>
-<div class=onphone><a class=btn style='width:100%;padding:14px;margin-top:12px' href='{html.escape(photo)}'>Open photo upload</a></div>
-<ol class=steps style='margin-top:16px'>
-<li><span>Open the page on your phone (scan the code).</span></li>
-<li><span>Press <b>Take photo</b> for each sheet, or <b>Choose from gallery</b> to pick several at once.</span></li>
-<li><span>Each sheet is read in the background and appears in the list.</span></li></ol></div>
-<div class=card><h2>Option 2 &middot; Live scanning</h2>
-<p class=mut style='margin-top:6px'>Hold the phone over each sheet. It checks the framing and captures by itself, then asks for the next sheet.</p>
-<div class=pconly><div class=qrbox>{qr}</div><a class=addr href='{html.escape(phone)}'>{html.escape(phone)}</a></div>
-<div class=onphone><a class=btn style='width:100%;padding:14px;margin-top:12px' href='{html.escape(phone)}'>Open scanner</a></div>{warn}
-<ol class=steps style='margin-top:16px'>
-<li><span>Open the scanner on your phone and press <b>Start scanning</b>.</span></li>
-<li><span>When the outline turns green it captures by itself. A green <b>NEXT</b> screen appears: swap in the next sheet.</span></li>
-<li><span>Press <b>Stop scanning</b> when finished.</span></li></ol></div></div>
-<p class=mut style='margin-top:14px'>Same Wi-Fi as this PC. First time only: the phone warns about the connection because the certificate is made on this PC. Tap <b>Advanced</b>, then <b>Proceed</b>, then allow the camera.</p>
-<div class=row style='margin-top:10px'><a class='btn alt sm' href='/s/{slug}'>Back to results</a><a class='btn alt sm' href='/live-test' target=_blank>Test the camera</a></div>""",
+<div class=card><h2>1. Open the page on your phone</h2>
+<div class=pconly><p class=mut style='margin-top:6px'>Same Wi-Fi as this PC. Point the phone camera at the code:</p>
+<div class=qrbox>{qr}</div><a class=addr href='{html.escape(photo)}'>{html.escape(photo)}</a></div>
+<div class=onphone><p class=mut style='margin:6px 0 14px'>You are on your phone already, so go straight to the upload page:</p>
+<a class=btn style='width:100%;padding:14px' href='{html.escape(photo)}'>Open photo upload</a></div></div>
+<div class=card><h2>2. Send the sheets</h2><ol class=steps>
+<li><span>Press <b>Take photo</b> for each sheet (the phone camera opens), or <b>Choose from gallery</b> to pick several at once.</span></li>
+<li><span>Lay the sheet flat in good, even light and keep the whole page in the picture.</span></li>
+<li><span>Each sheet is read in the background and appears in the list on the page.</span></li>
+<li><span>Open the results here to review, then download the Excel.</span></li></ol>
+<div class=row><a class='btn alt sm' href='/s/{slug}'>Back to results</a></div></div></div>""",
                 f"<a href='/'>Dashboard</a> &rsaquo; <a href='/s/{slug}'>{html.escape(slug)}</a>")
-
-
-@app.get("/s/{slug}/live", response_class=HTMLResponse)
-def live_page(slug: str):
-    if not (SETS / slug / "grades.db").exists():
-        return RedirectResponse("/")
-    return HTMLResponse(live.page_html(slug))
 
 
 @app.get("/s/{slug}/photo", response_class=HTMLResponse)
 def photo_page(slug: str):
-    """Photo mode: the phone's own camera app takes each sheet (full resolution), no live framing check."""
+    """Photo mode: the phone's own camera app takes each sheet (full resolution)."""
     if not (SETS / slug / "grades.db").exists():
         return RedirectResponse("/")
     import html as _h
     return HTMLResponse((Path(__file__).parent / "assets" / "photo.html").read_text(encoding="utf-8").replace("__SLUG__", _h.escape(slug, quote=True)))
 
 
-@app.get("/live-test", response_class=HTMLResponse)
-def live_test_page():
-    """Camera framing test: no set needed, nothing is captured or stored (the last frame is kept in data/live_debug/)."""
-    return HTMLResponse(live.page_html("test", test=True))
-
-
-@app.get("/live-test/sheet", response_class=HTMLResponse)
-def live_test_sheet():
-    """Open on the PC and point the phone at the screen: a sample sheet shown as large as possible on white (screens are a poor stand-in for paper)."""
-    return HTMLResponse("<!doctype html><meta charset=utf-8><title>Sample sheet</title><body style='margin:0;background:#fff'>"
-                        "<img src='/live-test/sheet.jpg' style='display:block;margin:auto;height:100vh;max-width:100vw;object-fit:contain'>")
-
-
-@app.get("/live-test/sheet.jpg")
-def live_test_sheet_img():
-    files = sorted((ROOT / "data" / "samples").glob("sheet_*.jp*g"))
-    if not files:
-        raise HTTPException(404)
-    return FileResponse(files[0])
-
-
-@app.post("/s/{slug}/live/frame")
-async def live_frame(slug: str, request: Request):
-    data = await request.body()
-
-    def work():
-        with _lock:                     # cv2's SIFT object is shared with the pipeline
-            if slug == "test":
-                live.save_debug_frame(data)
-            return live.check_frame(data)
-    return await run_in_threadpool(work)
-
-
-_jobs: dict = {}                    # live capture id -> {"state": "reading" | "done" | "error", ...}
+_jobs: dict = {}                    # capture id -> {"state": "reading" | "done" | "error", ...}
 _reader = ThreadPoolExecutor(max_workers=1)   # sheets are read one at a time in the background so the phone is never kept waiting
 
 
-def _read_live(job: str, slug: str, data: bytes, name: str):
+def _read_photo(job: str, slug: str, data: bytes, name: str):
     try:
         with _lock:
             r = pipe_for(slug).process(data, name)
@@ -538,18 +484,18 @@ def _read_live(job: str, slug: str, data: bytes, name: str):
         _jobs[job] = {"state": "error", "msg": str(e)}
 
 
-@app.post("/s/{slug}/live/capture")
-async def live_capture(slug: str, request: Request):
-    """Store the photo and return at once; the result is fetched from /live/job/<id> when the sheet has been read."""
+@app.post("/s/{slug}/photo/capture")
+async def photo_capture(slug: str, request: Request):
+    """Store the photo and return at once; the result is fetched from /photo/job/<id> when the sheet has been read."""
     data = await request.body()
     job = uuid.uuid4().hex
     _jobs[job] = {"state": "reading"}
-    _reader.submit(_read_live, job, slug, data, f"live_{time.strftime('%Y%m%d_%H%M%S')}.jpg")
+    _reader.submit(_read_photo, job, slug, data, f"photo_{time.strftime('%Y%m%d_%H%M%S')}.jpg")
     return {"job": job}
 
 
-@app.get("/s/{slug}/live/job/{job}")
-def live_job(slug: str, job: str):
+@app.get("/s/{slug}/photo/job/{job}")
+def photo_job(slug: str, job: str):
     return _jobs.get(job, {"state": "error", "msg": "unknown job"})
 
 

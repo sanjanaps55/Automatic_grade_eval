@@ -11,14 +11,22 @@ B_X = (layout.GROUP_X[0][2], layout.GROUP_X[0][3])
 
 
 def ink_mask(aligned: np.ndarray) -> np.ndarray:
-    """Boolean mask of pen ink: pixels whose red-green (Lab a*) value departs from the local paper colour.
+    """Boolean mask of pen ink.
 
-    Works for pale red/pink pen where a plain saturation threshold fails, and ignores the blue printed grid.
+    Main rule: pixels whose red-green (Lab a*) value departs from the local paper colour; works for pale red/pink pen
+    where a plain saturation threshold fails, and ignores the blue printed grid.
+    Second rule (compression-robust): JPEG/downscaling washes the colour out of thin red strokes but they stay darker than the
+    paper, so pixels that are clearly darker AND show a (blurred) red shift, and are not blue, count as ink too. It only ever
+    adds pixels, so photos at full quality give practically the same mask as before.
     """
-    a = cv2.cvtColor(aligned, cv2.COLOR_BGR2LAB)[..., 1]
-    bg = cv2.medianBlur(a, 51).astype(np.int16)
-    d = a.astype(np.int16) - bg
-    return (d > 7) | (d < -12)   # red/pink ink, green ink
+    L, a, b = cv2.split(cv2.cvtColor(aligned, cv2.COLOR_BGR2LAB))
+    d = a.astype(np.int16) - cv2.medianBlur(a, 51).astype(np.int16)
+    main = (d > 7) | (d < -12)   # red/pink ink, green ink
+    dl = L.astype(np.int16) - cv2.medianBlur(L, 51).astype(np.int16)
+    a_s, b_s = cv2.GaussianBlur(a, (0, 0), 1.5), cv2.GaussianBlur(b, (0, 0), 1.5)
+    da = a_s.astype(np.int16) - cv2.medianBlur(a_s, 51).astype(np.int16)
+    db = b_s.astype(np.int16) - cv2.medianBlur(b_s, 51).astype(np.int16)
+    return main | ((dl < -22) & (da > 3) & (db > -6))
 
 
 def row_box(row: int, x_range=SPILL_X, pad: int = 6):

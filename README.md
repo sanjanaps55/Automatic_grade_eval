@@ -30,10 +30,11 @@ pytest tests/
 
 | Job | File | Status |
 |---|---|---|
-| Marks per question (digits in the grid) | `models/marks.pt` (ResNet18 + CTC) | in use; 97.4% exact on held-out filled rows |
+| Marks per question (simple rows) | `models/marks_sum.pt` (ResNet18 + CTC, reads sums) | in use |
+| Marks per question (hard rows: a\|b entries, written sums) | `models/hard_b_s0.pt` (same net + position channels) | in use; ~62% vs 46% exact on held-out hard rows |
 | Register number | `models/trocr_reg_small/` (TrOCR-small) | in use; val 84% / test 75% exact, ~1 s/strip CPU |
-| Register number (fallback) | `models/reg_resnet_split.pt`, `models/reg.pt` | older ResNet readers, not re-scored on the current split |
-| Name | none yet | `trocr_name_small` is too weak (8% exact); do not use |
+| Older models | `models/not_used_models/` | not loaded by the app, kept for reference; not in the shared zip |
+| Name | `models/trocr_name_small/` | weak free-text reader (8% exact): used only as a hint when matching the register number to the class list |
 
 3. Check the register-number model loads and reproduces the numbers (needs `data/`): `python scripts/eval_header.py --field reg`.
 
@@ -59,7 +60,7 @@ The sheet photos, labels and class roster (`data/`) are private and are not shar
 - **Final pick** for register number (TrOCR-small vs Paddle mobile) once Paddle is scored the same way.
 - **Marks**: retrain on the 3-way split; a|b columns and written sums (e.g. `3+2+1+2`) are not read yet (sent to review); 8 curled sheets fail to align.
 - **Pipeline** (`grade_eval/pipeline.py`): hash -> dedupe -> align -> read -> roster match -> validate -> save to SQLite.
-- **FastAPI server** with phone upload / live capture page, and a **review UI** for sheets held for review (`db.approve_sheet`), Excel via `export_excel`.
+- **FastAPI server** with a phone photo-upload page, and a **review UI** for sheets held for review (`db.approve_sheet`), Excel via `export_excel`.
 - **Exam YAMLs** (per-question max marks, a/b limits) and the real class roster.
 - **~30-50 fresh sheets** from different students for a true unseen test, and more labelled name strips.
 
