@@ -8,6 +8,7 @@ validation) is stored with status needs_review and reasons; only clean sheets wr
 The name reader is not built yet: the name comes from the roster when the register number matches, else it is empty.
 """
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -28,6 +29,10 @@ from grade_eval.vision.preprocess import load_image
 
 MARK_CONF = 0.90        # per-row confidence needed to accept a marks read
 MAX_Q_MARK = 30         # larger reads are almost certainly garbage
+TOT_CONF = 0.5          # a written total must be read with at least this probability (and no rival total close behind)
+TOT_RIVAL = 0.3         # ... and no different total may be read with more than this probability
+SOLVE_MARGIN = 2.5      # log-probability lead of the best row combination over the runner-up for the "adjusted to the total" suggestion
+GUESS_MIN = 0.25        # unclear rows show their best guess to the reviewer when it has at least this probability
 SOLO_CONF = 0.97        # single-number rows without a sub-total cross-check must be at least this confident
 CONFIRM = "please confirm: "   # reasons with this prefix mean "read fine, just glance at it"; anything else needs a fix
 BLANK_INK = 0.003       # ink fraction of the a-column below which a row is blank
@@ -74,6 +79,13 @@ class GradePipeline:
             self.hard_net.eval()
             self.hard_coord = ck["coord"]
         self.n_questions = n_questions
+        self.total_reader = None    # reads the written total (Sub-Total cell / Grand Total box) to cross-check the marks
+        self.tot_conf = TOT_CONF
+        suffix = os.environ.get("GRADE_TOTAL_SUFFIX", "")     # "_eval" = readers trained on the train split only (honest scoring)
+        sp, gp = ROOT / "models" / f"total_sub{suffix}.pt", ROOT / "models" / f"total_grand{suffix}.pt"
+        if sp.exists() and gp.exists() and os.environ.get("GRADE_NO_TOTAL") != "1":
+            from grade_eval import totals as totals_mod
+            self.total_reader = totals_mod.TotalReader(sp, gp, self.dev)
         self.name_model = None
         name_path = ROOT / "models" / "trocr_name_small"      # weak free-text reader: used only as a roster hint
         if name_path.exists():
@@ -95,6 +107,13 @@ class GradePipeline:
             return ""
         strip = torch.tensor(header.name_strip(aligned)).unsqueeze(0).unsqueeze(0)
         return self.fh.decode(self.name_model, self.name_tok, strip.to(self.dev), "name")[0]
+
+    @staticmethod
+    def _value_conf_c(c: dict, s: str, frame_conf: float) -> float:
+        v = 0.0 if s == "" else parse_sum(s)
+        if v is None:
+            return frame_conf
+        return float(np.exp(c[v])) if v in c else frame_conf
 
     @staticmethod
     def _value_conf(lg: np.ndarray, s: str, frame_conf: float) -> float:
@@ -132,9 +151,12 @@ class GradePipeline:
             reads = self.ctc_decode(logits)
             # confidence = probability of the read VALUE (all spellings/alignments that give it), not the weakest single
             # frame: a correct but loosely-written '3' scores ~0.6 on the frame rule yet ~0.9+ on the value
-            reads = [(sx, self._value_conf(lg.numpy(), sx, cf)) for lg, (sx, cf) in zip(logits, reads)]
+            cand_list = [marks_solver.candidates(lg.numpy(), keep=6) for lg in logits]
+            self.last_cands, self.last_keys = cand_list, keys                 # for tentative read-outs and analysis
+            reads = [(sx, self._value_conf_c(c, sx, cf)) for c, (sx, cf) in zip(cand_list, reads)]
         questions, confs, reasons, subs = {}, [], [], {}
-        for (g, i, box), (s, conf) in zip(keys, reads):
+        self.last_guesses = {}
+        for idx, ((g, i, box), (s, conf)) in enumerate(zip(keys, reads)):
             if i == 10:
                 if s and conf >= MARK_CONF:
                     v = parse_sum(s)
@@ -151,9 +173,19 @@ class GradePipeline:
             v = parse_sum(s)
             if v is None or conf < MARK_CONF or v > MAX_Q_MARK:
                 reasons.append(f"Q{q}: unclear read '{s}' (conf {conf:.2f})")
+                cd = self.last_cands[idx]
+                if cd:                                              # best guess, shown highlighted for the reviewer; never auto-accepted
+                    gv, glp = max(cd.items(), key=lambda kv: kv[1])
+                    if np.exp(glp) >= GUESS_MIN:
+                        self.last_guesses[q] = {"a": gv, "p": round(float(np.exp(glp)), 2)}
                 continue
             questions[q] = {"a": v, "b": None, "raw": s, "conf": round(conf, 3)}
             confs.append(conf)
+        tot_note = None
+        if self.total_reader is not None and groups == 1:
+            questions, reasons, confs, sub, crosschecked, tot_note = self._cross_check_total(
+                mask, keys, reads, logits, questions, reasons, confs, n)
+            return questions, sub, confs, reasons, crosschecked
         for g in range(groups):                                    # per-block written sub-total check
             if g in subs:
                 tot = sum(v["a"] for q, v in questions.items() if (q - 1) // 10 == g)
@@ -165,6 +197,65 @@ class GradePipeline:
         crosschecked = bool(used) and all(
             g in subs and abs(sum(v["a"] for q, v in questions.items() if (q - 1) // 10 == g) - subs[g]) < 1e-6 for g in used)
         return questions, sub, confs, reasons, crosschecked
+
+
+    def _cross_check_total(self, mask, keys, reads, logits, questions, reasons, confs, n):
+        """Use the written total (Sub-Total cell / Grand Total box) to confirm or suggest the question marks.
+
+        A: the best reading of every row adds up to the confidently read total -> rows accepted, sheet cross-checked.
+        B: otherwise, if changing the fewest rows to their runner-up readings makes them add up (clear winner) -> suggestion
+           only, marked "please confirm" with the adjusted rows named. Nothing is changed silently.
+        C: a confident total that no reading explains -> the sheet is held back with the mismatch stated.
+        """
+        tr = self.total_reader.read_totals(mask)
+        pooled = sorted(tr["totals"].items(), key=lambda kv: -kv[1])
+        total, p_tot = (pooled[0] if pooled else (None, 0.0))
+        rival = max([p for v, p in pooled[1:] if total is not None and abs(v - total) > 1e-6] or [0.0])
+        if total is None or p_tot < self.tot_conf or rival > TOT_RIVAL:
+            return questions, reasons, confs, None, False, None            # no usable written total: behave as before
+        rows, order, ink_blank = {}, [], {}
+        for (g, i, box), (sx, cf), lg in zip(keys, reads, logits):
+            if i == 10 or i + 1 > n:
+                continue
+            x0, y0, x1, y1 = box
+            c = marks_solver.candidates(lg.numpy(), keep=6)
+            ink_blank[i + 1] = float(mask[y0:y1, x0:x1].mean()) < BLANK_INK
+            rows[i + 1] = (c, sx, cf)
+        if any(not c for c, _, _ in rows.values()):
+            return questions, reasons, confs, total, False, None
+        best = {q: max(c.items(), key=lambda kv: kv[1])[0] for q, (c, _, _) in rows.items()}
+        if abs(sum(best.values()) - total) < 1e-6:                          # A
+            newq, newconf = {}, []
+            for q, v in best.items():
+                c, sx, cf = rows[q]
+                if ink_blank[q] and v == 0.0:
+                    continue
+                if v == 0.0 and sx == "":
+                    continue
+                pv = float(np.exp(c[v]))
+                raw = sx if marks_solver.parse_sum(sx) == v else f"{v:g}"
+                newq[q] = {"a": v, "b": None, "raw": raw, "conf": round(pv, 3)}
+                newconf.append(pv)
+            keep = [r for r in reasons if not (r.startswith("Q") and "unclear read" in r)]
+            return newq, keep, newconf, total, True, "agree"
+        # B: runner-up readings that make the rows add up
+        solved, margin, nsol = marks_solver.solve([c for c, _, _ in rows.values()], {total: 0.0})
+        if solved is not None and margin >= SOLVE_MARGIN:
+            qs = list(rows)
+            changed = [q for q, v in zip(qs, solved) if abs(v - best[q]) > 1e-6]
+            if 0 < len(changed) <= 2:
+                newq, newconf = {}, []
+                for q, v in zip(qs, solved):
+                    if ink_blank[q] and v == 0.0:
+                        continue
+                    newq[q] = {"a": v, "b": None, "raw": f"{v:g}", "conf": round(float(np.exp(rows[q][0].get(v, -9))), 3)}
+                    newconf.append(0.99)
+                keep = [r for r in reasons if not (r.startswith("Q") and "unclear read" in r)]
+                keep.append(CONFIRM + "marks adjusted to match the written total " + f"{total:g}: " +
+                            ", ".join(f"Q{q} {best[q]:g} -> {dict(zip(qs, solved))[q]:g}" for q in changed))
+                return newq, keep, newconf, total, False, "adjusted"
+        reasons = list(reasons) + [f"written total reads {total:g} but the marks do not add up to it"]       # C
+        return questions, reasons, confs, total, False, "mismatch"
 
     # --- main entry ------------------------------------------------------------------------------------------------
     def process(self, data: bytes, filename: str = "") -> dict:
@@ -201,7 +292,10 @@ class GradePipeline:
             m = roster_mod.match_sheet(reg_raw, name_read, self.roster)
             if m.row is not None and m.status != "review":
                 reg_no, name = m.row.reg_no, m.row.name
-                reg_exact = reg_no == reg_raw and m.status == "auto"      # exact AND the name agrees
+                # exact match is trusted when the name agrees, or when no OTHER student on the list is one slip away
+                # (then a single misread digit cannot silently turn into a classmate)
+                others = sum(1 for r in self.roster if r.reg_no != reg_no and roster_mod.lev(reg_raw, r.reg_no) <= 1)
+                reg_exact = reg_no == reg_raw and (m.status == "auto" or (others == 0 and os.environ.get("GRADE_REG_UNIQUE", "1") == "1"))
                 if reg_no != reg_raw:
                     reasons.append(CONFIRM + f"register no. read '{reg_raw}', matched {reg_no} on the class list "
                                    f"({'name agrees' if m.status == 'auto' else 'name not readable'})")
@@ -224,6 +318,7 @@ class GradePipeline:
         extracted = {k: out[k] for k in ("file", "reg_raw", "reg_no", "name", "sub_total")}
         extracted["name_read"] = name_read
         extracted["questions"] = {str(q): v for q, v in questions.items()}
+        extracted["guesses"] = {str(q): v for q, v in getattr(self, "last_guesses", {}).items() if q not in questions}
         extracted["crosschecked"] = crosschecked
         out["status"] = db.save_sheet(self.conn, h, reg_no, name, self.config.course_code, questions, reasons, extracted)
         return out

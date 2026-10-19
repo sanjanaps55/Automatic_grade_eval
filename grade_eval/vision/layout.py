@@ -7,6 +7,9 @@ import numpy as np
 
 TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "assets" / "template.png"
 MIN_INLIERS = 30
+import os
+ALIGN_UP = os.environ.get("GRADE_ALIGN_UP", "1") == "1"      # upscale small / re-compressed photos before matching (WhatsApp-sized copies failed otherwise)
+UP_TO = 2000
 
 # Measured on the template image (see make_template.py). Row boundaries: 10 question rows + sub-total row.
 ROW_Y = [539, 656, 772, 888, 1005, 1122, 1239, 1356, 1472, 1588, 1706, 1825]
@@ -44,6 +47,10 @@ class Alignment:
 def align(img: np.ndarray) -> Alignment | None:
     """Warp the photo into the template frame, or None if the page can't be matched."""
     tpl, tkp, tdes = _get_template()
+    if ALIGN_UP:
+        h0, w0 = img.shape[:2]; k = UP_TO / max(h0, w0)
+        if k > 1.05:
+            img = cv2.resize(img, (round(w0 * k), round(h0 * k)), interpolation=cv2.INTER_CUBIC)
     kp, des = _sift.detectAndCompute(_gray(img), None)
     if des is None or len(kp) < MIN_INLIERS:
         return None

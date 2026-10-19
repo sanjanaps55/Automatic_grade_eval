@@ -248,7 +248,8 @@ def sheet_rows(slug):
             name = ex.get("name", "")
         rows.append(dict(id=s["id"], hash=s["image_hash"], status=s["status"], tier=tier_of(s["status"], reasons),
                          file=ex.get("file", ""), reg=s["reg_no"] or ex.get("reg_raw", ""), name=name, qs=qs,
-                         sub=ex.get("sub_total"), reasons=reasons, raw={int(q): v.get("raw", "") for q, v in ex.get("questions", {}).items()}))
+                         sub=ex.get("sub_total"), reasons=reasons, raw={int(q): v.get("raw", "") for q, v in ex.get("questions", {}).items()},
+                         guess={int(q): v for q, v in ex.get("guesses", {}).items()} if s["status"] != "verified" else {}))
     return rows
 
 
@@ -286,7 +287,8 @@ def set_page(slug: str, added: int = 0, dup: int = 0, err: int = 0, filter: str 
         sc = scores[r["id"]]
         cells = "".join(
             f"<td class='n{' bad' if sc and i in sc['bad_q'] else ''}' title='read: {html.escape(r['raw'].get(i, ''), quote=True)}"
-            f"{'; truth: ' + (fmt(sc['bad_q'][i]) or 'blank') if sc and i in sc['bad_q'] else ''}'>{fmt(r['qs'].get(i))}</td>"
+            f"{'; truth: ' + (fmt(sc['bad_q'][i]) or 'blank') if sc and i in sc['bad_q'] else ''}'>"
+            f"{fmt(r['qs'].get(i)) if i in r['qs'] or i not in r['guess'] else '<i style=opacity:.55 title=guess>~' + fmt(r['guess'][i]['a']) + '</i>'}</td>"
             for i in range(1, n + 1))
         verdict = "" if not has_truth else "<td class=mut>-</td>" if sc is None else (
             "<td class=ok>correct</td>" if sc["ok"] else
@@ -375,9 +377,13 @@ def sheet_page(slug: str, sheet_id: int):
         return RedirectResponse(f"/s/{slug}")
     n = meta_of(slug)["n_questions"]
     roster = roster_of(slug)
-    fields = "".join(f"<div><label>Q{i}</label><input type=text inputmode=decimal name=q{i} value='{fmt(r['qs'].get(i))}'>"
-                     f"<span class=mut>{html.escape(r['raw'].get(i, '')) if '+' in r['raw'].get(i, '') else ''}</span></div>"
-                     for i in range(1, n + 1))
+    def field(i):
+        g = r["guess"].get(i) if i not in r["qs"] else None
+        val = fmt(g["a"]) if g else fmt(r["qs"].get(i))
+        hint = (f"guess (p={g['p']})" if g else html.escape(r["raw"].get(i, "")) if "+" in r["raw"].get(i, "") else "")
+        sty = " style='background:#fef08a;color:#111'" if g else ""
+        return f"<div><label>Q{i}</label><input type=text inputmode=decimal name=q{i} value='{val}'{sty}><span class=mut>{hint}</span></div>"
+    fields = "".join(field(i) for i in range(1, n + 1))
     why = "".join(f"<li>{html.escape(x)}</li>" for x in r["reasons"])
     im = f"<img class=prev src='/img/{r['hash']}'>" if (ALIGNED / (r["hash"] + ".png")).exists() else "<p class=mut>No preview.</p>"
     cls, label = TIER[r["tier"]]
