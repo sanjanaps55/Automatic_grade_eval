@@ -183,7 +183,7 @@ def home(new: int = 0):
 <label class=f>Name</label><input type=text name=name placeholder="e.g. BCSE209L CAT-1 slot B2" required>
 <label class=f>Class list (Excel or CSV with register number and name)</label><input type=file name=roster accept=".xlsx,.csv">
 <label class=f>Questions in the paper</label><input type=number name=n_questions value=10 min=1 max=40>
-<input type=hidden name=max_mark value=100><input type=hidden name=test_mode value=1>
+<input type=hidden name=max_mark value=100>
 <p class=mut>The class list lets the app match each sheet to a student and fill the Excel in your order.</p>
 <button style='width:100%;margin-top:6px'>Create set</button></form></dialog>
 <script>if(new URLSearchParams(location.search).get('new'))document.getElementById('new').showModal()</script>""")
