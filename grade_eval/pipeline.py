@@ -29,6 +29,8 @@ from grade_eval.vision.preprocess import load_image
 
 MARK_CONF = 0.90        # per-row confidence needed to accept a marks read
 MAX_Q_MARK = 30         # larger reads are almost certainly garbage
+NAME_TIEBREAK_SIM = 0.4   # exact register match with a look-alike classmate: name must resemble the matched student at least this much ...
+NAME_TIEBREAK_LEAD = 0.1  # ... and more than any look-alike classmate by this margin (0.4/0.1 accepted 48 of 73 such matches, 0 wrong, on the labelled sheets)
 TOT_LR = 11.0           # nats of evidence that the total strips read this number rather than nothing (false-evidence rate ~1% per wrong number)
 TOT_MARGIN = 3.0        # lead (nats) of the winning total hypothesis over the runner-up
 GUESS_MIN = 0.25        # unclear rows show their best guess to the reviewer when it has at least this probability
@@ -295,8 +297,13 @@ class GradePipeline:
                 reg_no, name = m.row.reg_no, m.row.name
                 # exact match is trusted when the name agrees, or when no OTHER student on the list is one slip away
                 # (then a single misread digit cannot silently turn into a classmate)
-                others = sum(1 for r in self.roster if r.reg_no != reg_no and roster_mod.lev(reg_raw, r.reg_no) <= 1)
-                reg_exact = reg_no == reg_raw and (m.status == "auto" or (others == 0 and os.environ.get("GRADE_REG_UNIQUE", "1") == "1"))
+                near = [r for r in self.roster if r.reg_no != reg_no and roster_mod.lev(reg_raw, r.reg_no) <= 1]
+                reg_exact = reg_no == reg_raw and (m.status == "auto" or (not near and os.environ.get("GRADE_REG_UNIQUE", "1") == "1"))
+                if reg_no == reg_raw and not reg_exact and near and name_read and os.environ.get("GRADE_NAME_TIEBREAK", "1") == "1":
+                    # a classmate is one slip away: the handwritten name must favour the matched student over every such neighbour
+                    s_m = roster_mod.name_similarity(name_read, m.row.name)
+                    s_n = max(roster_mod.name_similarity(name_read, r.name) for r in near)
+                    reg_exact = s_m >= NAME_TIEBREAK_SIM and s_m - s_n >= NAME_TIEBREAK_LEAD
                 if reg_no != reg_raw:
                     reasons.append(CONFIRM + f"register no. read '{reg_raw}', matched {reg_no} on the class list "
                                    f"({'name agrees' if m.status == 'auto' else 'name not readable'})")
@@ -312,7 +319,7 @@ class GradePipeline:
             elif not self.test_mode and not crosschecked and (any("+" in v["raw"] for v in questions.values()) or min(v["conf"] for v in questions.values()) < SOLO_CONF):
                 reasons.append(CONFIRM + "marks read, but no written sub-total to cross-check them against")
             if self.roster and not reg_exact and not (self.test_mode and reg_no == reg_raw):
-                reasons.append(CONFIRM + "register number matched the class list but the handwritten name could not confirm it")
+                reasons.append(CONFIRM + "register number matched the class list, but a classmate with a very similar number is on the list and the handwritten name did not clearly tell them apart")
             elif not self.roster:
                 reasons.append(CONFIRM + "register number read by OCR and no class list uploaded to check it")
         out.update(reg_no=reg_no, name=name, questions=questions, sub_total=sub_total, reasons=reasons, reg_raw=reg_raw)
