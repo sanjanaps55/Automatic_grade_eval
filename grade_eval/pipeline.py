@@ -32,6 +32,9 @@ MAX_Q_MARK = 30         # larger reads are almost certainly garbage
 NAME_TIEBREAK_SIM = 0.4   # exact register match with a look-alike classmate: name must resemble the matched student at least this much ...
 NAME_TIEBREAK_LEAD = 0.1  # ... and more than any look-alike classmate by this margin (0.4/0.1 accepted 48 of 73 such matches, 0 wrong, on the labelled sheets)
 TOT_LR = 11.0           # nats of evidence that the total strips read this number rather than nothing (false-evidence rate ~1% per wrong number)
+TOT_LR_SHAKY = 14.0      # stronger total evidence demanded when any row's own reading is under SHAKY_ROW (lower-bar mode)
+SHAKY_ROW = 0.8
+CROSSCHECKED_MIN_ROW = 0.5  # with the total check passed, rows are accepted down to this probability; below it the sheet goes to review
 TOT_MARGIN = 3.0        # lead (nats) of the winning total hypothesis over the runner-up
 GUESS_MIN = 0.25        # unclear rows show their best guess to the reviewer when it has at least this probability
 SOLO_CONF = 0.97        # single-number rows without a sub-total cross-check must be at least this confident
@@ -245,7 +248,10 @@ class GradePipeline:
         j = int(order[0])
         margin = float(H[j] - H[order[1]]) if len(order) > 1 else 1e9
         best = {q: max(c.items(), key=lambda kv: kv[1])[0] for q, (c, _, _) in rows.items()}
-        if E[j] >= TOT_LR and margin >= TOT_MARGIN and abs(sum(best.values()) - values[j]) < 1e-6:
+        lower_bar = os.environ.get("GRADE_LOWER_BAR", "1") == "1"
+        row_p = [float(np.exp(c[best[q]])) for q, (c, _, _) in rows.items()]
+        need = TOT_LR_SHAKY if (lower_bar and min(row_p) < SHAKY_ROW) else TOT_LR
+        if E[j] >= need and margin >= TOT_MARGIN and abs(sum(best.values()) - values[j]) < 1e-6                 and (not lower_bar or min(row_p) >= CROSSCHECKED_MIN_ROW or min(row_p) >= SHAKY_ROW):
             newq, newconf = {}, []
             for q, v in best.items():
                 c, sx, cf = rows[q]
@@ -312,7 +318,10 @@ class GradePipeline:
         elif not REG_NO_RE.match(reg_raw):
             pass  # validate_sheet reports it
 
-        reasons += validate_sheet(reg_no, questions, None, self.config, confs)   # sub-total is checked per block in read_marks
+        v_confs = confs
+        if crosschecked and os.environ.get("GRADE_LOWER_BAR", "1") == "1":
+            v_confs = [c for c in confs if c < CROSSCHECKED_MIN_ROW] or None     # total passed: only rows under 0.5 still count against the sheet
+        reasons += validate_sheet(reg_no, questions, None, self.config, v_confs)   # sub-total is checked per block in read_marks
         if not reasons:                                      # nothing wrong, but is it safe to write without a human glance?
             if not questions:
                 reasons.append(CONFIRM + "no marks were found on this sheet")
